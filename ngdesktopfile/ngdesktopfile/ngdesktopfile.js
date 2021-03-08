@@ -46,6 +46,29 @@ angular.module('ngdesktopfile',['servoy'])
 			}
 			else func();
 		}
+		function runningElectron(version) {
+			var userAgent = navigator.userAgent.toLowerCase();
+			var elAg = userAgent.indexOf('electron/');
+			if (elAg > -1) {
+				if (version) {
+					var curVersion = getCurrentVersion().replace(/\./g,'');
+					if (curVersion >= version) {
+						return true;
+					} else {
+						return false;
+					}
+				} else {
+					return true;
+				}
+			} else {
+				return false;
+			}
+		}
+		function getCurrentVersion() {
+			var userAgent = navigator.userAgent.toLowerCase();
+			var elAg = userAgent.indexOf('electron/');
+			return userAgent.substring(elAg + 9, userAgent.indexOf(' ', elAg));
+		}
 		return {
 			waitForDefered: function(func) {
 				waitForDefered(func);
