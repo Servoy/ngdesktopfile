@@ -474,7 +474,11 @@ angular.module('ngdesktopfile',['servoy'])
  			 */
 			openFile: function(path) {
 				try {
-					return shell.openItem(path);
+					if (runningElectron(900)) {
+						return shell.openPath(path);
+					} else {
+						return shell.openItem(path);
+					}
 				} catch(err) {
 					console.log(err);
 				}
