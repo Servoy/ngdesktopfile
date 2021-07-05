@@ -32,7 +32,7 @@ export class NGDesktopFileService {
             this.os = r('os');
             this.chokidar = r('chokidar');
             this.request = r('request');
-            this.remote = r('electron').remote;
+            this.remote = r('@electron/remote');
             this.shell = r('electron').shell;
             this.session = this.remote.session;
             this.dialog = this.remote.dialog;
