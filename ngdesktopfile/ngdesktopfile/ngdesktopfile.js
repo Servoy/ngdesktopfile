@@ -13,7 +13,7 @@ angular.module('ngdesktopfile',['servoy'])
 		fs = require('fs');
 		chokidar = require('chokidar');
 		request = require('request');
-		remote = require('electron').remote;
+		remote = require('@electron/remote');
 		shell = require('electron').shell;
 		session = remote.session;
 		dialog = remote.dialog;
