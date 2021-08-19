@@ -466,7 +466,8 @@ angular.module('ngdesktopfile',['servoy'])
 				}
 			},
 			/**
-			 * Opens a file specified at the given path.
+			 * Opens a file specified at the given path on the client. 
+             * This path must exist on the client's machine, you can't open a file with a path pointing to a file on the server, use writeFile() first to write it to the clients machine.
 			 * It returns a string value. 
 			 * If the value is empty, then the file has been successfully opened, otherwise the string contains the error message.
 			 * 
