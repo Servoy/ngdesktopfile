@@ -6,6 +6,7 @@ import * as fs from 'fs';
 import * as os from 'os';
 import * as electron from 'electron';
 import * as chokidar from 'chokidar';
+import { WriteFileOptions } from 'fs';
 
 
 @Injectable()
@@ -48,16 +49,14 @@ export class NGDesktopFileService {
                     });
                 }).catch((error) => {
                      this.log.error(error);
-                })
+                });
         } else {
             this.log.warn('ngdesktopfile service/plugin loaded in a none electron environment!');
         }
     }
     waitForDefered<T>(func: () => T): T | Promise<T> {
         if (this.defer != null) {
-            return this.defer.promise.then(() => {
-                return func();
-            });
+            return this.defer.promise.then(() => func());
         } else return func();
     }
 
@@ -97,7 +96,7 @@ export class NGDesktopFileService {
      * @param dir - directory's full path
      * @param callback - the callback method to be executed
      */
-    watchDir(dir: string, callback: { formname: string, script: string }) {
+    watchDir(dir: string, callback: { formname: string; script: string }) {
         /** Please check the below used library here: https://github.com/paulmillr/chokidar
          * add, addDir, change, unlink, unlinkDir these are all events.
          * add is for adding file
@@ -162,7 +161,7 @@ export class NGDesktopFileService {
      * Watches a give path, that should represent a file, for modifications.
      * Please use forward slashes (/) instead of backward slashes in the path/filename
      */
-    watchFile(path: string, callback: { formname: string, script: string }) {
+    watchFile(path: string, callback: { formname: string; script: string }) {
         this.waitForDefered(() => {
             this.fs.watchFile(path, (curr, prev) => {
                 if (curr.mtime !== prev.mtime)
@@ -235,7 +234,7 @@ export class NGDesktopFileService {
      * Please use forward slashes (/) instead of backward slashes in the path/filename
      *
      */
-    readFile(_callback: { formname: string, script: string }, _path: string) {
+    readFile(_callback: { formname: string; script: string }, _path: string) {
         // empty impl, is implemented in server side api calling the impl method below.
     }
 
@@ -265,7 +264,7 @@ export class NGDesktopFileService {
     /**
      * Select a folder and pass its path to the callback.
      */
-    selectDirectory(callback: { formname: string, script: string }) {
+    selectDirectory(callback: { formname: string; script: string }) {
         this.waitForDefered(() => {
             const options: electron.OpenDialogOptions = {
                 title: 'Select folder',
@@ -298,7 +297,7 @@ export class NGDesktopFileService {
      * buttonLabel: String - custom label for the confirmation button, when left empty the default label will be used.
      * filters: Array<{name: String, extensions: Array<String>}> - an array of file filters (e.g. [{ name: 'Images', extensions: ['jpg', 'png', 'gif'] }])
      */
-    showSaveDialog(callback: { formname: string, script: string }, options: electron.SaveDialogSyncOptions) {
+    showSaveDialog(callback: { formname: string; script: string }, options: electron.SaveDialogSyncOptions) {
         this.waitForDefered(() => {
             if (!options) {
                 options = {};
@@ -360,7 +359,7 @@ export class NGDesktopFileService {
      * @param callback
      * @param [options]
      */
-    showOpenDialog(callback: { formname: string, script: string }, options: electron.OpenDialogOptions) {
+    showOpenDialog(callback: { formname: string; script: string }, options: electron.OpenDialogOptions) {
         this.waitForDefered(() => {
             if (!options) {
                 options = {};
@@ -412,7 +411,7 @@ export class NGDesktopFileService {
      * @param path
      * @param [errorCallback]
      */
-    deleteFile(path: string, errorCallback: { formname: string, script: string }) {
+    deleteFile(path: string, errorCallback: { formname: string; script: string }) {
         this.waitForDefered(() => {
             this.fs.unlink(path, (err) => {
                 if (err && errorCallback) this.servoyService.executeInlineScript(errorCallback.formname, errorCallback.script, [err]);
@@ -471,9 +470,7 @@ export class NGDesktopFileService {
      * @return
      */
     openFile(path: string) {
-        return this.waitForDefered(() => {
-            return this.shell.openPath(path);
-        });
+        return this.waitForDefered(() => this.shell.openPath(path));
     }
 
     /**
@@ -486,7 +483,6 @@ export class NGDesktopFileService {
     exists(path: string) {
         try {
             let result = false;
-
             if (path) {
                 result = this.fs.existsSync(path);
             }
@@ -509,11 +505,11 @@ export class NGDesktopFileService {
     appendToTXTFile(path: string, text: string, encoding: string) {
         let result = true;
         try {
-            encoding = encoding || null;
+           const enc: WriteFileOptions= encoding as WriteFileOptions || null;
 
 
             if (path && text) {
-                this.fs.appendFileSync(path, text, encoding);
+                this.fs.appendFileSync(path, text, enc);
             } else {
                 result = false;
             }

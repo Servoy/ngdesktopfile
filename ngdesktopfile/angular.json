@@ -33,14 +33,12 @@
           }
         },
         "lint": {
-          "builder": "@angular-devkit/build-angular:tslint",
+          "builder": "@angular-eslint/builder:lint",
           "options": {
-            "tsConfig": [
-              "projects/ngdesktopfile/tsconfig.lib.json",
-              "projects/ngdesktopfile/tsconfig.spec.json"
-            ],
-            "exclude": [
-              "**/node_modules/**"
+            "preserveSymlinks": true,
+            "lintFilePatterns": [
+              "projects/ngdesktopfile/src/**/*.ts",
+              "projects/ngdesktopfile/src/**/*.html"
             ]
           }
         }
