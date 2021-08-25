@@ -18,26 +18,34 @@ angular.module('ngdesktopfile',['servoy'])
 		session = remote.session;
 		dialog = remote.dialog;
 		
+		var defer = null;
 		var j = request.jar();
 		request = request.defaults({jar:j});
+	}
+	if (fs) {
 		// Query all cookies.
+		defer = $q.defer();
+		
 		session.defaultSession.cookies.get({url:remote.getCurrentWebContents().getURL()})
 		  .then(function(cookies) {
 		    cookies.forEach(function(cookie) {
 		    	var ck = request.cookie(cookie.name + '=' + cookie.value);
 		    	j.setCookie(ck, document.baseURI);
+		    	console.log('COOKIE: ' + cookie.name + '=' + cookie.value);
 		    });
 		  }).catch(function(error){
 		    console.log(error)
-		  })
-	}
-	if (fs) {
+		  }).finally(function() {
+			defer.resolve(true);
+	        defer = null;
+	      });
+	      // Query all cookies.
+		
 		function getFullUrl(url) {
 			var base = document.baseURI;
 			if (!base.endsWith("/")) base = base + "/";
 			return base + url;
 		}
-		var defer = null;
 		function waitForDefered(func) {
 			if (defer != null) {
 				return defer.promise.then(function(){
