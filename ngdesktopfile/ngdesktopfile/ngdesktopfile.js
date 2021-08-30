@@ -31,7 +31,6 @@ angular.module('ngdesktopfile',['servoy'])
 		    cookies.forEach(function(cookie) {
 		    	var ck = request.cookie(cookie.name + '=' + cookie.value);
 		    	j.setCookie(ck, document.baseURI);
-		    	console.log('COOKIE: ' + cookie.name + '=' + cookie.value);
 		    });
 		  }).catch(function(error){
 		    console.log(error)
