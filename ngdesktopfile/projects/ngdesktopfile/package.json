@@ -1,6 +1,6 @@
 {
   "name": "@servoy/ngdesktopfile",
-  "version": "3.0.4",
+  "version": "3.0.3",
   "peerDependencies": {
     "@angular/common": ">=12",
     "@angular/core": ">=12"

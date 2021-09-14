@@ -12,7 +12,7 @@
                    {"version": "1.2","url": "https://github.com/Servoy/ngdesktopfile/releases/download/v1.2/ngdesktopfile.zip","servoy-version":"2019.12"},
                   {"version": "2.0.0","url": "https://github.com/Servoy/ngdesktopfile/releases/download/v2.0.0/ngdesktopfile.zip","servoy-version":"2020.12"},
                   {"version": "3.0.2","url": "https://github.com/Servoy/ngdesktopfile/releases/download/v3.0.2/ngdesktopfile.zip","servoy-version":"2020.12"},
-                  {"version": "3.0.3-rc1","url": "https://github.com/Servoy/ngdesktopfile/releases/download/v3.0.3-rc1/ngdesktopfile.zip","servoy-version":"2021.9"}
+                  {"version": "3.0.3","url": "https://github.com/Servoy/ngdesktopfile/releases/download/v3.0.3/ngdesktopfile.zip","servoy-version":"2021.9"}
                   
                 ]
 }
