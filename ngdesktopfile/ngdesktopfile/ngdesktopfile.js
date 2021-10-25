@@ -8,6 +8,7 @@ angular.module('ngdesktopfile',['servoy'])
 	var remote = null;
 	var watchers = new Map();
 	var shell = null;
+	var defer = null;
 	
 	if (typeof require == "function") {
 		fs = require('fs');
@@ -17,8 +18,6 @@ angular.module('ngdesktopfile',['servoy'])
 		shell = require('electron').shell;
 		session = remote.session;
 		dialog = remote.dialog;
-		
-		var defer = null;
 		var j = request.jar();
 		request = request.defaults({jar:j});
 	}
@@ -53,6 +52,20 @@ angular.module('ngdesktopfile',['servoy'])
 			}
 			else func();
 		}
+		function checkForExists(path) {
+			try {
+				var result = false;
+				console.log('exists: check for path: ' + path);
+				if(path) {
+					result = fs.existsSync(path);
+					console.log('exists: Path exists: ' + result);
+				}
+				console.log('exists: return ' + result);
+				return result;
+			} catch(err) {
+				console.log(err);
+			}
+		}
 		return {
 			waitForDefered: function(func) {
 				waitForDefered(func);
@@ -76,13 +89,13 @@ angular.module('ngdesktopfile',['servoy'])
 			 * Please use forward slashes (/) instead of backward slashes.
 			 */
 			listDir: function(path) {
-				const defer = $q.defer();
+				const listDefer = $q.defer();
 				waitForDefered(function() {
 					fs.readdir(path, function(error, files) {
-						 defer.resolve(files);
+						listDefer.resolve(files);
 					})
 				})
-				return defer.promise;
+				return listDefer.promise;
 			},
 			/**
 			 * Watches a directory for changes at the given path. 
@@ -172,12 +185,13 @@ angular.module('ngdesktopfile',['servoy'])
 			 * Writes the given bytes to the path, if the path has sub directories that are not there 
 			 * then those are made. If the path is missing or contain only the file name then the  
 			 * native system dialog for saving files it is called.
+			 * When finish, the optional callback it is called on finish with 'close' or 'error' string values
 			 * Please use forward slashes (/) instead of backward slashes in the path/filename
 			 */
-			writeFile: function(path, bytes) {
+			writeFile: function(path, bytes, callback) {
 				// empty impl, is implemented in server side api calling the impl method below.
 			},
-			writeFileImpl: function(path, url) {
+			writeFileImpl: function(path, url, callback) {
 				waitForDefered(function() {
 					function saveUrlToPath(dir, realPath) {
 					    fs.mkdir(dir, { recursive: true }, function(err) {
@@ -191,9 +205,13 @@ angular.module('ngdesktopfile',['servoy'])
 								pipe.on("error", function(err) {
 									defer.resolve(false);
 									defer = null;
+									if  (callback)
+										$window.executeInlineScript(callback.formname, callback.script, ['error'])
 									throw err;
 								});
 								pipe.on("close", function() {
+									if (callback)
+										$window.executeInlineScript(callback.formname, callback.script, ['close']);
 									defer.resolve(true);
 									defer = null;
 								});
@@ -420,6 +438,21 @@ angular.module('ngdesktopfile',['servoy'])
 				}
 			},
 			/**
+			 * Delete the given file, returning a boolean indicating success or failure
+			 * @param {String} path
+			 * @return {boolean}
+			 */
+			 deleteFileSync: function(path) {
+				try {
+					fs.unlinkSync(path);
+					return true;
+				} catch (e) {
+					console.log(e);
+					return false;
+				}
+			},
+
+			/**
 			 * Deletes the given file, optionally calling the error callback when unsuccessful
 			 * @param {String} path
 			 * @param {Function} [errorCallback]
@@ -438,39 +471,46 @@ angular.module('ngdesktopfile',['servoy'])
 			 * @return {stats}
 			 */
 			getFileStats: function(path) {
-				try {
-					var fsStats = fs.statSync(path);
-					if (fsStats.isSymbolicLink()) {
-						fsStats = fs.lStatSync(path);
+				const statsDefer = $q.defer();
+				waitForDefered(function() {
+					try {
+						var fsStats = fs.statSync(path);
+						if (fsStats.isSymbolicLink()) {
+							fsStats = fs.lStatSync(path);
+						}
+						var retStats = {
+							"isBlockDevice": fsStats.isBlockDevice(),
+							"isCharacterDevice": fsStats.isCharacterDevice(),
+							"isDirectory": fsStats.isDirectory(),
+							"isFIFO": fsStats.isFIFO(),
+							"isFile": fsStats.isFile(),
+							"isSocket": fsStats.isSocket(),
+							"isSymbolicLink": fsStats.isSymbolicLink(),
+							"dev": fsStats.dev,
+							"ino": fsStats.ino,
+							"mode": fsStats.mode,
+							"nlink": fsStats.nlink,
+							"uid": fsStats.uid,
+							"gid": fsStats.gid,
+							"rdev": fsStats.rdev,
+							"size": fsStats.size,
+							"blksize": fsStats.blksize,
+							"blocks": fsStats.blocks,
+							"atimeMs": fsStats.atimeMs,
+							"mtimeMs": fsStats.mtimeMs,
+							"ctimeMs": fsStats.ctimeMs,
+							"birthtimeMs": fsStats.birthtimeMs
+						};
+						statsDefer.resolve(retStats);
 					}
-					var retStats = {
-						"isBlockDevice": fsStats.isBlockDevice(),
-						"isCharacterDevice": fsStats.isCharacterDevice(),
-						"isDirectory": fsStats.isDirectory(),
-						"isFIFO": fsStats.isFIFO(),
-						"isFile": fsStats.isFile(),
-						"isSocket": fsStats.isSocket(),
-						"isSymbolicLink": fsStats.isSymbolicLink(),
-						"dev": fsStats.dev,
-						"ino": fsStats.ino,
-						"mode": fsStats.mode,
-						"nlink": fsStats.nlink,
-						"uid": fsStats.uid,
-						"gid": fsStats.gid,
-						"rdev": fsStats.rdev,
-						"size": fsStats.size,
-						"blksize": fsStats.blksize,
-						"blocks": fsStats.blocks,
-						"atimeMs": fsStats.atimeMs,
-						"mtimeMs": fsStats.mtimeMs,
-						"ctimeMs": fsStats.ctimeMs,
-						"birthtimeMs": fsStats.birthtimeMs
-					};
-					return retStats;
-				}
-				catch(err) {
-					console.log(err);
-				}
+					catch(err) {
+						statsDefer.resolve(null);
+					}
+				});
+				return statsDefer.promise;
+
+
+				
 			},
 			/**
 			 * Opens a file specified at the given path on the client. 
@@ -494,17 +534,15 @@ angular.module('ngdesktopfile',['servoy'])
 			 * @return {boolean}
  			 */
 			exists: function(path) {
-				try {
-					var result = false;
-					
+				const existsDefer = $q.defer();
+				waitForDefered(function() {
 					if(path) {
-						result = fs.existsSync(path);
+						existsDefer.resolve(fs.existsSync(path));
+					} else {
+						existsDefer.resolve(false);
 					}
-					
-					return result;
-				} catch(err) {
-					console.log(err);
-				}
+				})
+				return existsDefer.promise;
 			},
 			/**
 			 * Synchronously append data to a file, creating the file if it does not yet exist.

@@ -52,7 +52,8 @@
 		"writeFile": {
 			"parameters" : [
 				{"name":"path", "type":"string"},
-				{"name":"bytes", "type":"byte[]"}
+				{"name":"bytes", "type":"byte[]"},
+				{"name":"callback", "type":"function", "optional": true}
 			],
 			"async-now":true
 		},
@@ -62,6 +63,12 @@
 				{"name":"path", "type":"string", "optional": true}
 			],
 			"async-now":true
+		},
+		"deleteFileSync": {
+		 	"parameters": [
+		 		{"name":"path", "type":"string"}
+		 	],
+		 	"returns": "boolean"
 		},
 		"deleteFile": {
 		 	"parameters": [
@@ -175,7 +182,8 @@
  		"writeFileImpl": {
 			"parameters" : [
 				{"name":"path", "type":"string"},
-				{"name":"url", "type":"string"}
+				{"name":"url", "type":"string"},
+				{"name":"callback", "type":"function", "optional": true}
 			],
 			"async-now":true
 		},

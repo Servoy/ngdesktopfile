@@ -1,19 +1,15 @@
 var pathToCallback = {};
 
-$scope.api.writeFile = function(path,bytes)
+$scope.api.writeFile = function(path,bytes, callback)
 {
-	$scope.api.writeFileImpl(path,servoyApi.getMediaUrl(bytes));
+	var key=Math.random().toString(10);
+	pathToCallback[key] = callback;
+	$scope.api.writeFileImpl(path,servoyApi.getMediaUrl(bytes), callback);
 }
 
 $scope.api.readFile = function(callback, path)
 {
-	var key;
-	
-	if (!path) {
-		key = Math.random().toString(10);
-	} else {
-		key = path;
-	}
+	var key=Math.random().toString(10);
 	pathToCallback[key] = callback;
 	$scope.api.readFileImpl(path, key);
 }
