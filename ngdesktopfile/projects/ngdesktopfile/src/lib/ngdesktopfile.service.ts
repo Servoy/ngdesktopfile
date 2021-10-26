@@ -81,13 +81,13 @@ export class NGDesktopFileService {
      * Please use forward slashes (/) instead of backward slashes.
      */
     listDir(path: string) {
-        const defer = new Deferred();;
+        const listDefer = new Deferred();;
         this.waitForDefered(() => {
             this.fs.readdir(path, (_error, files) => {
-                defer.resolve(files);
+                listDefer.resolve(files);
             });
         });
-        return defer.promise;
+        return listDefer.promise;
     }
 
     /**
@@ -184,11 +184,11 @@ export class NGDesktopFileService {
      * native system dialog for saving files it is called.
      * Please use forward slashes (/) instead of backward slashes in the path/filename
      */
-    writeFile(_path: string, _bytes: any) {
+    writeFile(_path: string, _bytes: any, callback: { formname: string; script: string }) {
         // empty impl, is implemented in server side api calling the impl method below.
     }
 
-    writeFileImpl(path: string, url: string) {
+    writeFileImpl(path: string, url: string, callback: { formname: string; script: string }) {
         this.waitForDefered(() => {
             this.defer = new Deferred();
             path = (path != null) ? path : '';
@@ -196,7 +196,7 @@ export class NGDesktopFileService {
             const index = path.lastIndexOf('/');
             if (index >= 0) {
                 dir = path.substring(0, index);
-                this.saveUrlToPath(dir, path, url);
+                this.saveUrlToPath(dir, path, url, callback);
             } else {
                 const options = {
                     title: 'Save file',
@@ -210,7 +210,7 @@ export class NGDesktopFileService {
                             const indexOf = realPath.lastIndexOf('/');
                             if (indexOf > 0) {
                                 dir = realPath.substring(0, indexOf);
-                                this.saveUrlToPath(dir, realPath, url);
+                                this.saveUrlToPath(dir, realPath, url, callback);
                             } else {
                                 this.defer.resolve(false);
                                 this.defer = null;
@@ -406,6 +406,20 @@ export class NGDesktopFileService {
     }
 
     /**
+	 * Delete the given file, returning a boolean indicating success or failure
+	 * @param {String} path
+	 * @return {boolean}
+	 */
+     deleteFileSync(path: string) {
+        try {
+            this.fs.unlinkSync(path);
+            return true;
+        } catch (e) {
+            return false;
+        }
+    }
+
+    /**
      * Deletes the given file, optionally calling the error callback when unsuccessful
      *
      * @param path
@@ -426,39 +440,43 @@ export class NGDesktopFileService {
      * @return
      */
     getFileStats(path: string) {
-        try {
-            let fsStats = this.fs.statSync(path);
-            if (fsStats.isSymbolicLink()) {
-                fsStats = this.fs.lstatSync(path);
+        const statsDefer = new Deferred();
+		this.waitForDefered(() => {
+            try {
+                let fsStats = this.fs.statSync(path);
+                if (fsStats.isSymbolicLink()) {
+                    fsStats = this.fs.lstatSync(path);
+                }
+                const retStats = {
+                    isBlockDevice: fsStats.isBlockDevice(),
+                    isCharacterDevice: fsStats.isCharacterDevice(),
+                    isDirectory: fsStats.isDirectory(),
+                    isFIFO: fsStats.isFIFO(),
+                    isFile: fsStats.isFile(),
+                    isSocket: fsStats.isSocket(),
+                    isSymbolicLink: fsStats.isSymbolicLink(),
+                    dev: fsStats.dev,
+                    ino: fsStats.ino,
+                    mode: fsStats.mode,
+                    nlink: fsStats.nlink,
+                    uid: fsStats.uid,
+                    gid: fsStats.gid,
+                    rdev: fsStats.rdev,
+                    size: fsStats.size,
+                    blksize: fsStats.blksize,
+                    blocks: fsStats.blocks,
+                    atimeMs: fsStats.atimeMs,
+                    mtimeMs: fsStats.mtimeMs,
+                    ctimeMs: fsStats.ctimeMs,
+                    birthtimeMs: fsStats.birthtimeMs
+                };
+                statsDefer.resolve(retStats);
+            } catch (err) {
+                this.log.info(err);
+                statsDefer.resolve(null);
             }
-            const retStats = {
-                isBlockDevice: fsStats.isBlockDevice(),
-                isCharacterDevice: fsStats.isCharacterDevice(),
-                isDirectory: fsStats.isDirectory(),
-                isFIFO: fsStats.isFIFO(),
-                isFile: fsStats.isFile(),
-                isSocket: fsStats.isSocket(),
-                isSymbolicLink: fsStats.isSymbolicLink(),
-                dev: fsStats.dev,
-                ino: fsStats.ino,
-                mode: fsStats.mode,
-                nlink: fsStats.nlink,
-                uid: fsStats.uid,
-                gid: fsStats.gid,
-                rdev: fsStats.rdev,
-                size: fsStats.size,
-                blksize: fsStats.blksize,
-                blocks: fsStats.blocks,
-                atimeMs: fsStats.atimeMs,
-                mtimeMs: fsStats.mtimeMs,
-                ctimeMs: fsStats.ctimeMs,
-                birthtimeMs: fsStats.birthtimeMs
-            };
-            return retStats;
-        } catch (err) {
-            this.log.info(err);
-        }
-        return null;
+        });
+        return statsDefer.promise;
     }
 
     /**
@@ -481,17 +499,17 @@ export class NGDesktopFileService {
      * @return
      */
     exists(path: string) {
-        try {
-            let result = false;
-            if (path) {
-                result = this.fs.existsSync(path);
+        const existsDefer = new Deferred();
+        this.waitForDefered(() => {
+            try {
+                if (path) {
+                    existsDefer.resolve(this.fs.existsSync(path));
+                }
+            } catch (err) {
+                existsDefer.resolve(false);
             }
-
-            return result;
-        } catch (err) {
-            this.log.info(err);
-        }
-        return null;
+        });
+        return existsDefer.promise;
     }
 
     /**
@@ -680,7 +698,7 @@ export class NGDesktopFileService {
         return base + url;
     }
 
-    private saveUrlToPath(dir: string, realPath: string, url: string) {
+    private saveUrlToPath(dir: string, realPath: string, url: string, callback: { formname: string; script: string }) {
         this.fs.mkdir(dir, { recursive: true }, (err) => {
             if (err) {
                 this.defer.resolve(false);
@@ -691,10 +709,12 @@ export class NGDesktopFileService {
                 pipe.on('error', (err2: Error) => {
                     this.defer.resolve(false);
                     this.defer = null;
+                    if (callback) this.servoyService.executeInlineScript(callback.formname, callback.script, ['error']); 
                     throw err2;
                 });
                 pipe.on('close', () => {
                     this.defer.resolve(true);
+                    if (callback) this.servoyService.executeInlineScript(callback.formname, callback.script, ['close']); 
                     this.defer = null;
                 });
             }
