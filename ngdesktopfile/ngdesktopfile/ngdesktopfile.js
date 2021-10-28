@@ -52,20 +52,6 @@ angular.module('ngdesktopfile',['servoy'])
 			}
 			else func();
 		}
-		function checkForExists(path) {
-			try {
-				var result = false;
-				console.log('exists: check for path: ' + path);
-				if(path) {
-					result = fs.existsSync(path);
-					console.log('exists: Path exists: ' + result);
-				}
-				console.log('exists: return ' + result);
-				return result;
-			} catch(err) {
-				console.log(err);
-			}
-		}
 		return {
 			waitForDefered: function(func) {
 				waitForDefered(func);
@@ -723,7 +709,42 @@ angular.module('ngdesktopfile',['servoy'])
 				} finally {
 					return result;
 				}
-			}
+			},
+			/**
+			 * Set the specified file as readonly. 
+			 * On error the optional callback is called with error object as the parameter
+			 * 
+			 * * @param path - directory's full path
+			 * @param callback - the callback method to be executed on error
+			 */
+			 setReadOnly: function(path, callback) {
+				waitForDefered(function() {
+					fs.chmod(path, 0o444, function(err) {
+						if (err) {
+							if (callback) $window.executeInlineScript(callback.formname, callback.script, [err]);
+							throw err;
+						} 
+					});
+				})
+			},
+
+			/**
+			 * Set the specified file as readonly. 
+			 * On error the optional callback is called with error object as the parameter
+			 * 
+			 * @param path - directory's full path
+			 * @param callback - the callback method to be executed on error
+			 */
+			 setReadWrite: function(path, callback) {
+				waitForDefered(function() {
+					fs.chmod(path, 0o644, function(err) {
+						if (err) {
+							if (callback) $window.executeInlineScript(callback.formname, callback.script, [err]);
+							throw err;
+						} 
+					});
+				})
+			},
 		}
 	}
 	else {

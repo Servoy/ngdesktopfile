@@ -64,6 +64,20 @@
 			],
 			"async-now":true
 		},
+		"setReadOnly": {
+			"parameters" : [
+				{"name":"path", "type":"string"},
+				{"name":"callback", "type":"function", "optional": true}
+			],
+			"async-now":true
+		},
+		"setReadWrite": {
+			"parameters" : [
+				{"name":"path", "type":"string"},
+				{"name":"callback", "type":"function", "optional": true}
+			],
+			"async-now":true
+		},
 		"deleteFileSync": {
 		 	"parameters": [
 		 		{"name":"path", "type":"string"}
