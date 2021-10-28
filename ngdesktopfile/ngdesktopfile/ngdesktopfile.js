@@ -717,11 +717,11 @@ angular.module('ngdesktopfile',['servoy'])
 			 * * @param path - directory's full path
 			 * @param callback - the callback method to be executed on error
 			 */
-			 setReadOnly: function(path, callback) {
+			 setReadOnly: function(path, errorCallback) {
 				waitForDefered(function() {
 					fs.chmod(path, 0o444, function(err) {
 						if (err) {
-							if (callback) $window.executeInlineScript(callback.formname, callback.script, [err]);
+							if (errorCallback) $window.executeInlineScript(errorCallback.formname, errorCallback.script, [err]);
 							throw err;
 						} 
 					});
@@ -735,11 +735,11 @@ angular.module('ngdesktopfile',['servoy'])
 			 * @param path - directory's full path
 			 * @param callback - the callback method to be executed on error
 			 */
-			 setReadWrite: function(path, callback) {
+			 setReadWrite: function(path, errorCallback) {
 				waitForDefered(function() {
 					fs.chmod(path, 0o644, function(err) {
 						if (err) {
-							if (callback) $window.executeInlineScript(callback.formname, callback.script, [err]);
+							if (errorCallback) $window.executeInlineScript(errorCallback.formname, errorCallback.script, [err]);
 							throw err;
 						} 
 					});
