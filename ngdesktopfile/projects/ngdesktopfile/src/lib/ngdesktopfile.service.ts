@@ -56,7 +56,7 @@ export class NGDesktopFileService {
     }
     waitForDefered<T>(func: () => T): T | Promise<T> {
         if (this.defer != null) {
-            return this.defer.promise.then(() => func());
+            return this.defer.promise.then(() => this.waitForDefered(func));
         } else return func();
     }
 
@@ -411,12 +411,16 @@ export class NGDesktopFileService {
 	 * @return {boolean}
 	 */
      deleteFileSync(path: string) {
-        try {
-            this.fs.unlinkSync(path);
-            return true;
-        } catch (e) {
-            return false;
-        }
+        const deleteDefer = new Deferred();
+		this.waitForDefered(() => {
+			this.defer = new Deferred();
+			this.fs.unlink(path, (err) => {
+				this.resolveBooleanDefer(err,deleteDefer);
+			});
+			this.defer.resolve(null);
+			this.defer = null;
+		});
+		return deleteDefer.promise;
     }
 
     /**
@@ -425,13 +429,17 @@ export class NGDesktopFileService {
      * @param path
      * @param [errorCallback]
      */
-    deleteFile(path: string, errorCallback: { formname: string; script: string }) {
+     deleteFile(path: string, errorCallback: { formname: string; script: string }) {
         this.waitForDefered(() => {
-            this.fs.unlink(path, (err) => {
+            this.defer = new Deferred();
+            this.fs.unlink(path, function(err) {
                 if (err && errorCallback) this.servoyService.executeInlineScript(errorCallback.formname, errorCallback.script, [err]);
             });
-        });
+            this.defer.resolve(null);
+            this.defer = null;
+        })
     }
+
 
     /**
      * Return a 'stats' object containing related file's information's.
@@ -439,44 +447,27 @@ export class NGDesktopFileService {
      *
      * @return
      */
-    getFileStats(path: string) {
+     getFileStats(path: string) {
         const statsDefer = new Deferred();
 		this.waitForDefered(() => {
-            try {
-                let fsStats = this.fs.statSync(path);
-                if (fsStats.isSymbolicLink()) {
-                    fsStats = this.fs.lstatSync(path);
-                }
-                const retStats = {
-                    isBlockDevice: fsStats.isBlockDevice(),
-                    isCharacterDevice: fsStats.isCharacterDevice(),
-                    isDirectory: fsStats.isDirectory(),
-                    isFIFO: fsStats.isFIFO(),
-                    isFile: fsStats.isFile(),
-                    isSocket: fsStats.isSocket(),
-                    isSymbolicLink: fsStats.isSymbolicLink(),
-                    dev: fsStats.dev,
-                    ino: fsStats.ino,
-                    mode: fsStats.mode,
-                    nlink: fsStats.nlink,
-                    uid: fsStats.uid,
-                    gid: fsStats.gid,
-                    rdev: fsStats.rdev,
-                    size: fsStats.size,
-                    blksize: fsStats.blksize,
-                    blocks: fsStats.blocks,
-                    atimeMs: fsStats.atimeMs,
-                    mtimeMs: fsStats.mtimeMs,
-                    ctimeMs: fsStats.ctimeMs,
-                    birthtimeMs: fsStats.birthtimeMs
-                };
-                statsDefer.resolve(retStats);
-            } catch (err) {
-                this.log.info(err);
-                statsDefer.resolve(null);
-            }
-        });
-        return statsDefer.promise;
+			try {
+				this.fs.lstat(path, (err, stats) => {
+					if (err) throw err;
+					if (stats.isSymbolicLink()) {//this method is valid only when calling fs.lstat() (NOT fs.stat())
+						statsDefer.resolve(this.getStatsValues(stats))
+					} else {
+						this.fs.stat(path, (err, stats) => {
+							if (err) throw err;
+								statsDefer.resolve(this.getStatsValues(stats));
+						});
+					}
+				});
+			} catch (err) {
+				statsDefer.resolve(null);
+				console.error(err);
+			}
+		});
+		return statsDefer.promise;
     }
 
     /**
@@ -498,13 +489,13 @@ export class NGDesktopFileService {
      * @param path - file's full path
      * @return
      */
-    exists(path: string) {
+     exists(path: string) {
         const existsDefer = new Deferred();
         this.waitForDefered(() => {
             try {
                 if (path) {
                     existsDefer.resolve(this.fs.existsSync(path));
-                }
+                }   
             } catch (err) {
                 existsDefer.resolve(false);
             }
@@ -520,22 +511,22 @@ export class NGDesktopFileService {
      * @param [encoding] - default utf8
      * @return
      */
-    appendToTXTFile(path: string, text: string, encoding: string) {
-        let result = true;
-        try {
-           const enc: WriteFileOptions= encoding as WriteFileOptions || null;
-
-
-            if (path && text) {
-                this.fs.appendFileSync(path, text, enc);
+     appendToTXTFile(path: string, text: string, encoding: string) {
+        var appendDefer = new Deferred();
+        this.waitForDefered(() => {
+            this.defer = new Deferred();
+            const enc: WriteFileOptions= encoding as WriteFileOptions || null;
+            if(path && text) {
+                this.fs.appendFile(path, text, enc, (err) => {
+                    this.resolveBooleanDefer(err, appendDefer);
+                });
             } else {
-                result = false;
+                appendDefer.resolve(false);
             }
-        } catch (err) {
-            result = false;
-            this.log.info(err);
-        }
-        return result;
+            this.defer.resolve(null);
+            this.defer = null;
+        });	
+        return appendDefer.promise;
     }
 
     /**
@@ -546,22 +537,24 @@ export class NGDesktopFileService {
      * @param [overwriteDest] - default true
      * @return
      */
-    copyFile(src: string, dest: string, overwriteDest: boolean) {
-        let result = true;
-        try {
-            const mode = (overwriteDest === false) ? 1 : 0;
-
-            if (src && dest) {
-                this.fs.copyFileSync(src, dest, mode);
-            } else {
-                result = false;
-            }
-        } catch (err) {
-            result = false;
-            this.log.info(err);
-        }
-        return result;
+     copyFile(src: string, dest: string, overwriteDest: boolean) {
+        const copyDefer = new Deferred();
+		this.waitForDefered(() => {
+			this.defer = new Deferred();
+			var mode = (overwriteDest === false) ? 1 : 0; 						
+			if(src && dest) {
+				this.fs.copyFile(src, dest, mode, (err) => {
+					this.resolveBooleanDefer(err, copyDefer);
+				});
+			} else {
+				copyDefer.resolve(false);
+			}
+			this.defer.resolve(null);
+			this.defer = null;
+		});
+		return copyDefer.promise;
     }
+
 
     /**
      * Synchronously creates a folder, including any necessary but nonexistent parent folders.
@@ -570,21 +563,22 @@ export class NGDesktopFileService {
      * @return
      */
     createFolder(path: string) {
-        let result = true;
-        try {
-
-            if (path) {
-                this.fs.mkdirSync(path, { recursive: true });
-                result = this.fs.existsSync(path);
-            } else {
-                result = false;
-            }
-        } catch (err) {
-            result = false;
-            this.log.info(err);
-        }
-        return result;
+        const createDefer = new Deferred();
+		this.waitForDefered(() => {
+			this.defer = new Deferred();
+			if(path) {
+				this.fs.mkdir(path, { recursive: true }, (err) => {
+					this.resolveBooleanDefer(err, createDefer);
+				});
+			} else {
+				createDefer.resolve(false);
+			}
+			this.defer.resolve(null);
+			this.defer = null;
+		});
+		return createDefer.promise;
     }
+
 
     /**
      * Synchronously deletes a folder, fails when folder is not empty
@@ -592,21 +586,21 @@ export class NGDesktopFileService {
      * @param path - folders full path
      * @return
      */
-    deleteFolder(path: string) {
-        let result = true;
-        try {
-
-            if (path) {
-                this.fs.rmdirSync(path);
-                result = !this.fs.existsSync(path);
-            } else {
-                result = false;
-            }
-        } catch (err) {
-            result = false;
-            this.log.info(err);
-        }
-        return result;
+     deleteFolder(path: string) {
+        const deleteDefer = new Deferred();
+		this.waitForDefered(() => {
+			this.defer = new Deferred();
+			if(path) {
+				this.fs.rmdir(path, (err) => {
+					this.resolveBooleanDefer(err, deleteDefer);
+				});
+			} else {
+				deleteDefer.resolve(false);
+			}
+			this.defer.resolve(null);
+			this.defer = null;
+		});
+		return deleteDefer.promise;
     }
 
     /**
@@ -618,19 +612,15 @@ export class NGDesktopFileService {
      * @return
      */
     renameFile(oldPath: string, newPath: string) {
-        let result = true;
-        try {
-
-            if (oldPath && newPath) {
-                this.fs.renameSync(oldPath, newPath);
-            } else {
-                result = false;
-            }
-        } catch (err) {
-            result = false;
-            this.log.info(err);
-        }
-        return result;
+        const renameDefer = new Deferred();
+        this.waitForDefered(() => {
+            this.defer = new Deferred();
+            this.fs.rename(oldPath, newPath, (err) => {
+                this.resolveBooleanDefer(err, renameDefer);
+            });
+            this.defer.resolve(null);
+            this.defer = null;
+        });
     }
 
     /**
@@ -642,28 +632,28 @@ export class NGDesktopFileService {
      *
      * @return
      */
-    writeTXTFileSync(path: string, text_data: string, encoding: BufferEncoding) {
-        let result = true;
-        try {
-
-            text_data = text_data || '';
-            const options: fs.WriteFileOptions = { encoding: 'utf8' };
-
-            if (encoding) {
-                options.encoding = encoding;
-            }
-
-            if (path) {
-                this.fs.writeFileSync(path, text_data, options);
-            } else {
-                result = false;
-            }
-        } catch (err) {
-            result = false;
-            this.log.info(err);
-        }
-        return result;
+     writeTXTFileSync(path: string, text_data: string, encoding: BufferEncoding) {
+        const writeDefer = new Deferred();
+		this.waitForDefered(() => {
+			this.defer = new Deferred();
+			text_data = text_data || '';
+    		const options: fs.WriteFileOptions = { encoding: 'utf8' };
+			if(encoding) {
+				options.encoding = encoding;
+			}
+			if(path) {
+				this.fs.writeFile(path, text_data, options, (err) => {
+					this.resolveBooleanDefer(err, writeDefer);
+				});
+			} else {
+				writeDefer.resolve(false);
+			}
+			this.defer.resolve(null);
+			this.defer = null;
+		});
+		return writeDefer.promise;
     }
+
 
     /**
      * Reads and returns the text of the given path/filename
@@ -673,24 +663,93 @@ export class NGDesktopFileService {
      *
      * @return
      */
-    readTXTFileSync(path: string, encoding: BufferEncoding) {
-        let result = null;
-        try {
-
-            const options: fs.WriteFileOptions = { encoding: 'utf8' };
-
-            if (encoding) {
-                options.encoding = encoding;
-            }
-
-            if (path) {
-                result = this.fs.readFileSync(path, options);
-            }
-        } catch (err) {
-            this.log.info(err);
-        }
-        return result;
+     readTXTFileSync(path: string, encoding: BufferEncoding) {
+        const readDefer = new Deferred();
+		this.waitForDefered(() => {
+		    this.defer = new Deferred();
+			const options: fs.ObjectEncodingOptions = { encoding: 'utf8' };
+			if(encoding) {
+				options.encoding = encoding;
+			}
+			if(path) {
+                this.fs.readFile(path, options, (err,data) => {
+                    if (err) {
+                        readDefer.resolve(null);
+                        console.error(err);
+                    } else {
+                        readDefer.resolve(data);
+                    }
+                });
+			} else {
+				readDefer.resolve(null);
+			}
+			this.defer.resolve(null);
+			this.defer = null
+		});
+		return readDefer.promise;
     }
+
+        /**
+         * Set permisions to the specified file. 
+         * If readOnly parameter is false, the file permisions flags will be set to read/write mod* 
+         * 
+         * @param path - file path
+         * 
+         * @return 
+         */
+        setReadOnly(path: string, flag: boolean) {
+            const deferRO = new Deferred();
+            this.waitForDefered(() => {
+                this.defer = new Deferred();
+                if (path) {
+                    if (flag) {
+                        this.fs.chmod(path, 0o444, (err) => {
+                            this.resolveBooleanDefer(err, deferRO);
+                        });
+                    } else {
+                        this.fs.chmod(path, 0o644, (err) => {
+                            this.resolveBooleanDefer(err, deferRO);
+                        });
+                    }
+                } else {
+                    deferRO.resolve(false);
+                }	
+                this.defer.resolve(null);
+                this.defer = null;
+            });
+            return deferRO.promise;
+        }
+    
+        /**
+         * Verify readonly status on the specified path. Returns true for readonly otherwise false
+         * 
+         * @param path - directory's full path
+         * 
+         * @return
+         */
+         getReadOnly(path: string) {
+            const deferRO = new Deferred();
+            this.waitForDefered(() => {
+                try {
+                    this.fs.lstat(path, (err, stats) => {
+                        if (err) throw err;
+                        if (stats.isSymbolicLink()) {//this method is valid only when calling fs.lstat() (NOT fs.stat())
+                            deferRO.resolve(this.isReadOnly(stats.mode));
+                        } else {
+                            this.fs.stat(path, (err, stats) => {
+                                if (err) throw err;
+                                deferRO.resolve(this.isReadOnly(stats.mode));
+                            });
+                        }
+                    });
+                } catch (err) {
+                    deferRO.resolve(false);
+                    console.error(err);
+                }
+            })
+            return deferRO.promise;
+        }
+    
 
     private getFullUrl(url: string) {
         let base = document.baseURI;
@@ -707,9 +766,9 @@ export class NGDesktopFileService {
             } else {
                 const pipe = this.request(this.getFullUrl(url)).pipe(this.fs.createWriteStream(realPath));
                 pipe.on('error', (err2: Error) => {
+                    if (callback) this.servoyService.executeInlineScript(callback.formname, callback.script, ['error']);
                     this.defer.resolve(false);
                     this.defer = null;
-                    if (callback) this.servoyService.executeInlineScript(callback.formname, callback.script, ['error']); 
                     throw err2;
                 });
                 pipe.on('close', () => {
@@ -735,4 +794,52 @@ export class NGDesktopFileService {
             });
     }
 
+    resolveBooleanDefer(err, localDefer) {
+        if (err) {
+            localDefer.resolve(false);
+            console.error(err);
+        } else {
+            localDefer.resolve(true);
+        }
+    }
+
+    getStatsValues(fsStats) {
+        var retStats = {
+            "isBlockDevice": fsStats.isBlockDevice(),
+            "isCharacterDevice": fsStats.isCharacterDevice(),
+            "isDirectory": fsStats.isDirectory(),
+            "isFIFO": fsStats.isFIFO(),
+            "isFile": fsStats.isFile(),
+            "isSocket": fsStats.isSocket(),
+            "isSymbolicLink": fsStats.isSymbolicLink(),
+            "dev": fsStats.dev,
+            "ino": fsStats.ino,
+            "mode": fsStats.mode,
+            "nlink": fsStats.nlink,
+            "uid": fsStats.uid,
+            "gid": fsStats.gid,
+            "rdev": fsStats.rdev,
+            "size": fsStats.size,
+            "blksize": fsStats.blksize,
+            "blocks": fsStats.blocks,
+            "atimeMs": fsStats.atimeMs,
+            "mtimeMs": fsStats.mtimeMs,
+            "ctimeMs": fsStats.ctimeMs,
+            "birthtimeMs": fsStats.birthtimeMs
+        };
+        return retStats;
+    }
+
+    isReadOnly(mode: number) {
+        switch (mode) {
+            case 33060: 	// r--r--r--
+            case 33056:		// r--r-----
+            case 33024: 	// r--------
+                return true;;
+            default:
+                return false; 
+        }
+    }
+
 }
+

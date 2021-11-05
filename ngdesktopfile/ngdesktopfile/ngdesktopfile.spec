@@ -67,16 +67,15 @@
 		"setReadOnly": {
 			"parameters" : [
 				{"name":"path", "type":"string"},
-				{"name":"errorCallback", "type":"function", "optional": true}
+				{"name":"flag", "type":"boolean"}
 			],
-			"async-now":true
+			"returns": "object"
 		},
-		"setReadWrite": {
+		"getReadOnly": {
 			"parameters" : [
-				{"name":"path", "type":"string"},
-				{"name":"errorCallback", "type":"function", "optional": true}
+				{"name":"path", "type":"string"}
 			],
-			"async-now":true
+			"returns": "boolean"
 		},
 		"deleteFileSync": {
 		 	"parameters": [

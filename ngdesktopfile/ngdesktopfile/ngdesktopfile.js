@@ -20,6 +20,7 @@ angular.module('ngdesktopfile',['servoy'])
 		dialog = remote.dialog;
 		var j = request.jar();
 		request = request.defaults({jar:j});
+		
 	}
 	if (fs) {
 		// Query all cookies.
@@ -38,16 +39,59 @@ angular.module('ngdesktopfile',['servoy'])
 	        defer = null;
 	      });
 	      // Query all cookies.
-		
+		function resolveBooleanDefer(err, localDefer) {
+			if (err) {
+				localDefer.resolve(false);
+				console.error(err);
+			} else {
+				localDefer.resolve(true);
+			}
+		}
+		function getStatsValues(fsStats) {
+			var retStats = {
+				"isBlockDevice": fsStats.isBlockDevice(),
+				"isCharacterDevice": fsStats.isCharacterDevice(),
+				"isDirectory": fsStats.isDirectory(),
+				"isFIFO": fsStats.isFIFO(),
+				"isFile": fsStats.isFile(),
+				"isSocket": fsStats.isSocket(),
+				"isSymbolicLink": fsStats.isSymbolicLink(),
+				"dev": fsStats.dev,
+				"ino": fsStats.ino,
+				"mode": fsStats.mode,
+				"nlink": fsStats.nlink,
+				"uid": fsStats.uid,
+				"gid": fsStats.gid,
+				"rdev": fsStats.rdev,
+				"size": fsStats.size,
+				"blksize": fsStats.blksize,
+				"blocks": fsStats.blocks,
+				"atimeMs": fsStats.atimeMs,
+				"mtimeMs": fsStats.mtimeMs,
+				"ctimeMs": fsStats.ctimeMs,
+				"birthtimeMs": fsStats.birthtimeMs
+			};
+			return retStats;
+		}
 		function getFullUrl(url) {
 			var base = document.baseURI;
 			if (!base.endsWith("/")) base = base + "/";
 			return base + url;
 		}
+		function isReadOnly(mode) {
+			switch (mode) {
+				case 33060: 	// r--r--r--
+				case 33056:		// r--r-----
+				case 33024: 	// r--------
+					return true;;
+				default:
+					return false; 
+			}
+		}
 		function waitForDefered(func) {
 			if (defer != null) {
 				return defer.promise.then(function(){
-					return func();
+					return waitForDefered(func); //avoid multiple calls to the same defer to be executed cncurently
 				})
 			}
 			else func();
@@ -189,10 +233,10 @@ angular.module('ngdesktopfile',['servoy'])
 					    	else {
 								const pipe = request(getFullUrl(url)).pipe(fs.createWriteStream(realPath));
 								pipe.on("error", function(err) {
+									if  (callback)
+										$window.executeInlineScript(callback.formname, callback.script, ['error']);
 									defer.resolve(false);
 									defer = null;
-									if  (callback)
-										$window.executeInlineScript(callback.formname, callback.script, ['error'])
 									throw err;
 								});
 								pipe.on("close", function() {
@@ -429,13 +473,16 @@ angular.module('ngdesktopfile',['servoy'])
 			 * @return {boolean}
 			 */
 			 deleteFileSync: function(path) {
-				try {
-					fs.unlinkSync(path);
-					return true;
-				} catch (e) {
-					console.log(e);
-					return false;
-				}
+				const deleteDefer = $q.defer();
+				waitForDefered(function() {
+					defer = $q.defer();
+					fs.unlink(path, function(err) {
+						resolveBooleanDefer(err,deleteDefer);
+					});
+					defer.resolve(null);
+					defer = null;
+				});
+				return deleteDefer.promise;
 			},
 
 			/**
@@ -445,9 +492,12 @@ angular.module('ngdesktopfile',['servoy'])
 			 */
 			deleteFile: function(path, errorCallback) {
 				waitForDefered(function() {
+					defer = $q.defer();
 					fs.unlink(path, function(err) {
 						if (err && errorCallback) $window.executeInlineScript(errorCallback.formname, errorCallback.script, [err]);
 					});
+					defer.resolve(null);
+				defer = null;
 				})
 			},
 			/**
@@ -460,43 +510,23 @@ angular.module('ngdesktopfile',['servoy'])
 				const statsDefer = $q.defer();
 				waitForDefered(function() {
 					try {
-						var fsStats = fs.statSync(path);
-						if (fsStats.isSymbolicLink()) {
-							fsStats = fs.lStatSync(path);
-						}
-						var retStats = {
-							"isBlockDevice": fsStats.isBlockDevice(),
-							"isCharacterDevice": fsStats.isCharacterDevice(),
-							"isDirectory": fsStats.isDirectory(),
-							"isFIFO": fsStats.isFIFO(),
-							"isFile": fsStats.isFile(),
-							"isSocket": fsStats.isSocket(),
-							"isSymbolicLink": fsStats.isSymbolicLink(),
-							"dev": fsStats.dev,
-							"ino": fsStats.ino,
-							"mode": fsStats.mode,
-							"nlink": fsStats.nlink,
-							"uid": fsStats.uid,
-							"gid": fsStats.gid,
-							"rdev": fsStats.rdev,
-							"size": fsStats.size,
-							"blksize": fsStats.blksize,
-							"blocks": fsStats.blocks,
-							"atimeMs": fsStats.atimeMs,
-							"mtimeMs": fsStats.mtimeMs,
-							"ctimeMs": fsStats.ctimeMs,
-							"birthtimeMs": fsStats.birthtimeMs
-						};
-						statsDefer.resolve(retStats);
-					}
-					catch(err) {
+						fs.lstat(path, function(err, stats) {
+							if (err) throw err;
+							if (stats.isSymbolicLink()) {//this method is valid only when calling fs.lstat() (NOT fs.stat())
+								statsDefer.resolve(getStatsValues(stats))
+							} else {
+								fs.stat(path, function(err, stats) {
+									if (err) throw err;
+									statsDefer.resolve(getStatsValues(stats));
+								});
+							}
+						});
+					} catch (err) {
 						statsDefer.resolve(null);
+						console.error(err);
 					}
 				});
 				return statsDefer.promise;
-
-
-				
 			},
 			/**
 			 * Opens a file specified at the given path on the client. 
@@ -519,10 +549,11 @@ angular.module('ngdesktopfile',['servoy'])
 			 * @param {String} path - file's full path
 			 * @return {boolean}
  			 */
-			exists: function(path) {
+			 exists: function(path) {
 				const existsDefer = $q.defer();
 				waitForDefered(function() {
 					if(path) {
+						//keep existsSync() since exists() is deprecated and access() must be used with open()/writeFile()/readFIle()
 						existsDefer.resolve(fs.existsSync(path));
 					} else {
 						existsDefer.resolve(false);
@@ -539,22 +570,21 @@ angular.module('ngdesktopfile',['servoy'])
 			 * @return {boolean}
  			 */
 			appendToTXTFile: function(path, text, encoding) {
-				try {
+				var appendDefer = $q.defer();
+				waitForDefered(function() {
+					defer = $q.defer();
 					encoding = encoding || null;
-					
-					var result = true;
-					
 					if(path && text) {
-						fs.appendFileSync(path, text, encoding);
+						fs.appendFile(path, text, encoding, function(err) {
+							resolveBooleanDefer(err, appendDefer);
+						});
 					} else {
-						result = false;
+						appendDefer.resolve(false);
 					}
-				} catch(err) {
-					result = false;
-					console.log(err);
-				} finally {
-					return result;
-				}
+					defer.resolve(null);
+					defer = null;
+				});	
+				return appendDefer.promise;
 			},
 			/**
 			 * Synchronously copies src to dest. By default, dest is overwritten if it already exists.
@@ -565,21 +595,21 @@ angular.module('ngdesktopfile',['servoy'])
 			 * @return {boolean}
  			 */
 			copyFile: function(src, dest, overwriteDest) {
-				try {
-					var mode = (overwriteDest === false) ? 1 : 0; 
-					var result = true;
-					
+				const copyDefer = $q.defer();
+				waitForDefered(function() {
+					defer = $q.defer();
+					var mode = (overwriteDest === false) ? 1 : 0; 						
 					if(src && dest) {
-						fs.copyFileSync(src, dest, mode);
+						fs.copyFile(src, dest, mode, function(err) {
+							resolveBooleanDefer(err, copyDefer);
+						});
 					} else {
-						result = false;
+						copyDefer.resolve(false);
 					}
-				} catch(err) {
-					result = false;
-					console.log(err);
-				} finally {
-					return result;
-				}
+					defer.resolve(null);
+					defer = null;
+				});
+				return copyDefer.promise;
 			},
 			/**
 			 * Synchronously creates a folder, including any necessary but nonexistent parent folders.
@@ -588,21 +618,20 @@ angular.module('ngdesktopfile',['servoy'])
 			 * @return {boolean}
  			 */
 			createFolder: function(path) {
-				try {
-					var result = true;
-					
+				const createDefer = $q.defer();
+				waitForDefered(function() {
+					defer = $q.defer();
 					if(path) {
-						fs.mkdirSync(path, { recursive: true });
-						result = fs.existsSync(path);
+						fs.mkdir(path, { recursive: true }, function(err) {
+							resolveBooleanDefer(err, createDefer);
+						});
 					} else {
-						result = false;
+						createDefer.resolve(false);
 					}
-				} catch(err) {
-					result = false;
-					console.log(err);
-				} finally {
-					return result;
-				}
+					defer.resolve(null);
+					defer = null;
+				});
+				return createDefer.promise;
 			},
 			/**
 			 * Synchronously deletes a folder, fails when folder is not empty
@@ -611,21 +640,20 @@ angular.module('ngdesktopfile',['servoy'])
 			 * @return {boolean}
  			 */
 			deleteFolder: function(path) {
-				try {
-					var result = true;
-					
+				const deleteDefer = $q.defer();
+				waitForDefered(function() {
+					defer = $q.defer();
 					if(path) {
-						fs.rmdirSync(path);
-						result = !fs.existsSync(path);
+						fs.rmdir(path, function(err) {
+							resolveBooleanDefer(err, deleteDefer);
+						});
 					} else {
-						result = false;
+						deleteDefer.resolve(false);
 					}
-				} catch(err) {
-					result = false;
-					console.log(err);
-				} finally {
-					return result;
-				}
+					defer.resolve(null);
+					defer = null;
+				});
+				return deleteDefer.promise;
 			},
 			/**
 			 * Synchronously rename file at oldPath to the pathname provided as newPath. In the case that newPath already exists, it will be overwritten.
@@ -636,20 +664,15 @@ angular.module('ngdesktopfile',['servoy'])
 			 * @return {boolean}
  			 */
 			renameFile: function(oldPath, newPath) {
-				try {
-					var result = true;
-					
-					if(oldPath && newPath) {
-						fs.renameSync(oldPath, newPath);
-					} else {
-						result = false;
-					}
-				} catch(err) {
-					result = false;
-					console.log(err);
-				} finally {
-					return result;
-				}
+				const renameDefer = $q.defer();
+				waitForDefered(function () {
+					defer = $q.defer();
+					fs.rename(oldPath, newPath, function(err) {
+						resolveBooleanDefer(err, renameDefer);
+					});
+					defer.resolve(null);
+					defer = null;
+				});
 			},
 			/**
 			 * Writes text to the given path/filename
@@ -661,27 +684,25 @@ angular.module('ngdesktopfile',['servoy'])
 			 * @return {boolean}
  			 */
 			writeTXTFileSync: function(path, text_data, encoding) {
-				try {
-					var result = true;
-					
+				const writeDefer = $q.defer();
+				waitForDefered(function(){
+					defer = $q.defer();
 					text_data = text_data || '';
 					var options = { encoding:'utf8' };
-					
 					if(encoding) {
 						options.encoding = encoding;
 					}
-					
 					if(path) {
-						fs.writeFileSync(path, text_data, options);
+						fs.writeFile(path, text_data, options, function(err) {
+							resolveBooleanDefer(err, writeDefer);
+						});
 					} else {
-						result = false;
+						writeDefer.resolve(false);
 					}
-				} catch(err) {
-					result = false;
-					console.log(err);
-				} finally {
-					return result;
-				}
+					defer.resolve(null);
+					defer = null;
+				});
+				return writeDefer.promise;
 			},
 			/**
 			 * Reads and returns the text of the given path/filename
@@ -689,12 +710,12 @@ angular.module('ngdesktopfile',['servoy'])
 			 * @param {String} path
 			 * @param {String} [encoding] optional, default 'utf8'
 			 * 
-			 * @return {boolean}
+			 * @return {String}
  			 */
 			readTXTFileSync: function(path, encoding) {
-				try {
-					var result = null;
-					
+				const readDefer = $q.defer();
+				waitForDefered(function() {
+					defer = $q.defer();
 					var options = { encoding:'utf8' };
 					
 					if(encoding) {
@@ -702,48 +723,80 @@ angular.module('ngdesktopfile',['servoy'])
 					}
 					
 					if(path) {
-						result = fs.readFileSync(path, options);
+						fs.readFile(path, options, function(err,data) {
+							if (err) {
+								readDefer.resolve(null);
+								console.error(err);
+							} else {
+								readDefer.resolve(data);
+							}
+						});
+					} else {
+						readDefer.resolve(null);
 					}
-				} catch(err) {
-					console.log(err);
-				} finally {
-					return result;
-				}
+					defer.resolve(null);
+					defer = null
+				});
+				return readDefer.promise;
 			},
 			/**
-			 * Set the specified file as readonly. 
-			 * On error the optional callback is called with error object as the parameter
+			 * Set permisions to the specified file. 
+			 * If readOnly parameter is false, the file permisions flags will be set to read/write mode
 			 * 
-			 * * @param path - directory's full path
-			 * @param callback - the callback method to be executed on error
+			 * 
+			 * @param path - file path
+			 * @return {boolean}
 			 */
-			 setReadOnly: function(path, errorCallback) {
+			 setReadOnly: function(path, flag) {
+				const deferRO = $q.defer()
 				waitForDefered(function() {
-					fs.chmod(path, 0o444, function(err) {
-						if (err) {
-							if (errorCallback) $window.executeInlineScript(errorCallback.formname, errorCallback.script, [err]);
-							throw err;
-						} 
-					});
-				})
+					defer = $q.defer();
+					if (path) {
+						if (flag) {
+							fs.chmod(path, 0o444, function(err) {
+								resolveBooleanDefer(err, deferRO);
+							});
+						} else {
+							fs.chmod(path, 0o644, function(err) {
+								resolveBooleanDefer(err, deferRO);
+							});
+						}
+					} else {
+						deferRO.resolve(false);
+					}	
+					defer.resolve(null);
+					defer = null;
+				});
+				return deferRO.promise;
 			},
 
 			/**
-			 * Set the specified file as readonly. 
-			 * On error the optional callback is called with error object as the parameter
+			 * Verify readonly status on the specified path. Returns true for readonly otherwise false
 			 * 
 			 * @param path - directory's full path
-			 * @param callback - the callback method to be executed on error
+			 * @return {boolean}
 			 */
-			 setReadWrite: function(path, errorCallback) {
+			 getReadOnly: function(path) {
+				const deferRO = $q.defer()
 				waitForDefered(function() {
-					fs.chmod(path, 0o644, function(err) {
-						if (err) {
-							if (errorCallback) $window.executeInlineScript(errorCallback.formname, errorCallback.script, [err]);
-							throw err;
-						} 
-					});
+					try {
+						fs.lstat(path, function(err, stats) {
+							if (err) throw err;
+							if (stats.isSymbolicLink()) {//this method is valid only when calling fs.lstat() (NOT fs.stat())
+								deferRO.resolve(isReadOnly(stats.mode));
+							} else {
+								fs.stat(path, function(err, stats) {
+									if (err) throw err;
+									deferRO.resolve(isReadOnly(stats.mode));
+								});
+							}
+						});
+					} catch (err) {
+						deferRO.resolve(false);
+						console.error(err);
+					}
 				})
+				return deferRO.promise;
 			},
 		}
 	}
@@ -773,7 +826,9 @@ angular.module('ngdesktopfile',['servoy'])
 			deleteFolder: function(path){console.log("not in electron");},
 			renameFile: function(oldPath, newPath){console.log("not in electron");},
 			writeTXTFileSync: function(path, text_data){console.log("not in electron");},
-			readTXTFileSync: function(path){console.log("not in electron");}
+			readTXTFileSync: function(path){console.log("not in electron");},
+			setReadOnly: function(path){console.log("not in electron");},
+			getReadOnly: function(path){console.log("not in electron");}
 		}
 	}
 })
