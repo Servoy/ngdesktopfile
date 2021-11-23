@@ -2,8 +2,8 @@
   "name": "@servoy/ngdesktopfile",
   "version": "3.0.4",
   "peerDependencies": {
-    "@angular/common": ">=12",
-    "@angular/core": ">=12"
+    "@angular/common": "^13",
+    "@angular/core": "^13"
   },
   "dependencies": {
     "tslib": "*"
