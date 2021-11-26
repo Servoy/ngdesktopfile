@@ -2,43 +2,26 @@ angular.module('ngdesktopfile',['servoy'])
 .factory("ngdesktopfile",function($services, $q, $window,$utils, $log) 
 {
 	var fs = null;
-	var request = null;
 	var session = null;
 	var dialog = null;
 	var remote = null;
 	var watchers = new Map();
 	var shell = null;
 	var defer = null;
+	var net = null;
+	var formData = null;
 	
 	if (typeof require == "function") {
 		fs = require('fs');
 		chokidar = require('chokidar');
-		request = require('request');
 		remote = require('@electron/remote');
 		shell = require('electron').shell;
 		session = remote.session;
 		dialog = remote.dialog;
-		var j = request.jar();
-		request = request.defaults({jar:j});
-		
+		net = remote.net;
+		formData = require('form-data');
 	}
 	if (fs) {
-		// Query all cookies.
-		defer = $q.defer();
-		
-		session.defaultSession.cookies.get({url:remote.getCurrentWebContents().getURL()})
-		  .then(function(cookies) {
-		    cookies.forEach(function(cookie) {
-		    	var ck = request.cookie(cookie.name + '=' + cookie.value);
-		    	j.setCookie(ck, document.baseURI);
-		    });
-		  }).catch(function(error){
-		    console.log(error)
-		  }).finally(function() {
-			defer.resolve(true);
-	        defer = null;
-	      });
-	      // Query all cookies.
 		function resolveBooleanDefer(err, localDefer) {
 			if (err) {
 				localDefer.resolve(false);
@@ -96,9 +79,20 @@ angular.module('ngdesktopfile',['servoy'])
 			}
 			else func();
 		}
+		function waitForLocalDefered(localDefer, func) {
+			if (localDefer != null) {
+				return localDefer.promise.then(function(){
+					return waitForLocalDefered(localDefer, func); //avoid multiple calls to the same defer to be executed cncurently
+				})
+			}
+			else func();
+		}
 		return {
 			waitForDefered: function(func) {
 				waitForDefered(func);
+			},
+			waitForLocalDefered: function(defer, func) {
+				waitForLocalDefered(defer, func);
 			},
 			/**
 			 * Returns the home dir of the user like c:/users/[username] under windows.
@@ -223,6 +217,7 @@ angular.module('ngdesktopfile',['servoy'])
 			},
 			writeFileImpl: function(path, url, callback) {
 				waitForDefered(function() {
+					var writeDefer = null;
 					function saveUrlToPath(dir, realPath) {
 					    fs.mkdir(dir, { recursive: true }, function(err) {
 					    	if (err) {
@@ -231,20 +226,63 @@ angular.module('ngdesktopfile',['servoy'])
 								throw err;
 					    	}
 					    	else {
-								const pipe = request(getFullUrl(url)).pipe(fs.createWriteStream(realPath));
-								pipe.on("error", function(err) {
-									if  (callback)
-										$window.executeInlineScript(callback.formname, callback.script, ['error']);
-									defer.resolve(false);
-									defer = null;
-									throw err;
+								var firstWrite = true;
+								var fileSize = 0;
+								var writeSize = 0;
+								const request = net.request(
+									{
+										url: getFullUrl(url),
+										session: remote.getCurrentWebContents().session,
+										useSessionCookies: true	
+									}
+								 );
+
+								request.on('response', (response) => {
+									fileSize = parseInt(response.headers['content-length'], 10);
+									response.on('data', (chunk) => {
+										waitForLocalDefered(writeDefer, function() {
+											writeDefer = $q.defer();
+											if (firstWrite == true) {
+												firstWrite = false;
+												fs.writeFile(realPath, chunk, function(err) {
+													if (err) {
+														defer.resolve(false); //global defer
+														defer = null;
+														throw err;
+													}
+												});
+											} else {
+												fs.appendFile(realPath, chunk, function(err) {
+													if (err) {
+														defer.resolve(false); //global defer
+														defer = null;
+														throw err;
+													}
+												});
+											} 
+											writeSize = writeSize + chunk.length;
+
+											if (writeSize === fileSize) {
+												defer.resolve(true);
+												defer = null;
+											}
+											writeDefer.resolve(null);
+											writeDefer = null;
+										})
+									});
 								});
-								pipe.on("close", function() {
-									if (callback)
-										$window.executeInlineScript(callback.formname, callback.script, ['close']);
-									defer.resolve(true);
+
+								request.on('abort', () => {
+									defer.resolve(false); //global defer
 									defer = null;
 								});
+								request.on('error', (err) => {
+									defer.resolve(false); //global defer
+									defer = null;
+									if (err) throw err;
+								});
+								request.setHeader('Content-Type', 'application/json');
+								request.end();
 					    	}
 						});
 					}
@@ -297,16 +335,34 @@ angular.module('ngdesktopfile',['servoy'])
 			readFileImpl: function(path, id) {
 				waitForDefered(function() {
 					function readUrlFromPath(path, id) {
-						var formData = {
-							path: path,
-							id: id,
-							file: fs.createReadStream(path)
-						};
-						request.post({url:getFullUrl($utils.generateServiceUploadUrl("ngdesktopfile", "callback")), formData: formData},
-							function optionalCallback(err, httpResponse, body) {
-								  if (err) {
-								    return console.error('upload failed:', err);
-								  }
+						var form = new formData();
+
+						form.append('path', path);
+						form.append('id', id);
+						form.append('file', fs.createReadStream(path, {highWaterMark : 8192 * 1024})); //internal buffer size
+						var fullUrl = getFullUrl($utils.generateServiceUploadUrl("ngdesktopfile", "callback"));
+
+						const request = net.request({
+							method: 'POST',
+							url: fullUrl,
+							session: remote.getCurrentWebContents().session,
+							useSessionCookies: true
+						});
+						var headers = form.getHeaders();
+						request.setHeader('content-type', headers['content-type']);
+						form.pipe(request);
+						request.on('error', (err) => {
+							if (defer) {
+								defer.resolve(false);
+								defer = null;
+							}
+							if (err) throw err;
+						});
+						request.on('response', (response) => {
+							if (defer) {
+								defer.resolve(true);
+								defer = null;
+							}
 						});
 					}
 					

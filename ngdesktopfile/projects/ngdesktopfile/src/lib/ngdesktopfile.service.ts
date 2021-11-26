@@ -18,11 +18,12 @@ export class NGDesktopFileService {
     private fs: typeof fs;
     private os: typeof os;
     private chokidar: typeof chokidar;
-    private request: any;
     private remote: electron.Remote;
     private shell: electron.Shell;
     private session: typeof electron.Session;
     private dialog: electron.Dialog;
+    private net;
+    private formData; // typeof formData;
 
     constructor(private servoyService: ServoyPublicService, private windowRef: WindowRefService, logFactory: LoggerFactory) {
         this.log = logFactory.getLogger('NGDesktopFileService');
@@ -32,24 +33,12 @@ export class NGDesktopFileService {
             this.fs = r('fs');
             this.os = r('os');
             this.chokidar = r('chokidar');
-            this.request = r('request');
+            this.formData = r('form-data');
             this.remote = r('@electron/remote');
             this.shell = r('electron').shell;
             this.session = this.remote.session;
             this.dialog = this.remote.dialog;
-
-            const j = this.request.jar();
-            this.request = this.request.defaults({ jar: j });
-            // Query all cookies.
-            this.session.defaultSession.cookies.get({ url: this.remote.getCurrentWebContents().getURL() })
-                .then((cookies) => {
-                    cookies.forEach((cookie) => {
-                        const ck = this.request.cookie(cookie.name + '=' + cookie.value);
-                        j.setCookie(ck, document.baseURI);
-                    });
-                }).catch((error) => {
-                     this.log.error(error);
-                });
+            this.net = this.remote.net;
         } else {
             this.log.warn('ngdesktopfile service/plugin loaded in a none electron environment!');
         }
@@ -58,6 +47,15 @@ export class NGDesktopFileService {
         if (this.defer != null) {
             return this.defer.promise.then(() => this.waitForDefered(func));
         } else return func();
+    }
+
+    waitForLocalDefered<T>(localDefer, func: () => T | Promise<T>) {
+        if (localDefer != null) {
+            return localDefer.promise.then(() => {
+                return this.waitForLocalDefered(localDefer, func); //avoid multiple calls to the same defer to be executed cncurently
+            })
+        }
+        else func();
     }
 
     /**
@@ -81,7 +79,7 @@ export class NGDesktopFileService {
      * Please use forward slashes (/) instead of backward slashes.
      */
     listDir(path: string) {
-        const listDefer = new Deferred();;
+        const listDefer = new Deferred();
         this.waitForDefered(() => {
             this.fs.readdir(path, (_error, files) => {
                 listDefer.resolve(files);
@@ -406,21 +404,21 @@ export class NGDesktopFileService {
     }
 
     /**
-	 * Delete the given file, returning a boolean indicating success or failure
-	 * @param {String} path
-	 * @return {boolean}
-	 */
+     * Delete the given file, returning a boolean indicating success or failure
+     * @param {String} path
+     * @return {boolean}
+     */
      deleteFileSync(path: string) {
         const deleteDefer = new Deferred();
-		this.waitForDefered(() => {
-			this.defer = new Deferred();
-			this.fs.unlink(path, (err) => {
-				this.resolveBooleanDefer(err,deleteDefer);
-			});
-			this.defer.resolve(null);
-			this.defer = null;
-		});
-		return deleteDefer.promise;
+        this.waitForDefered(() => {
+            this.defer = new Deferred();
+            this.fs.unlink(path, (err) => {
+                this.resolveBooleanDefer(err,deleteDefer);
+            });
+            this.defer.resolve(null);
+            this.defer = null;
+        });
+        return deleteDefer.promise;
     }
 
     /**
@@ -432,7 +430,7 @@ export class NGDesktopFileService {
      deleteFile(path: string, errorCallback: { formname: string; script: string }) {
         this.waitForDefered(() => {
             this.defer = new Deferred();
-            this.fs.unlink(path, function(err) {
+            this.fs.unlink(path, (err) => {
                 if (err && errorCallback) this.servoyService.executeInlineScript(errorCallback.formname, errorCallback.script, [err]);
             });
             this.defer.resolve(null);
@@ -449,25 +447,25 @@ export class NGDesktopFileService {
      */
      getFileStats(path: string) {
         const statsDefer = new Deferred();
-		this.waitForDefered(() => {
-			try {
-				this.fs.lstat(path, (err, stats) => {
-					if (err) throw err;
-					if (stats.isSymbolicLink()) {//this method is valid only when calling fs.lstat() (NOT fs.stat())
-						statsDefer.resolve(this.getStatsValues(stats))
-					} else {
-						this.fs.stat(path, (err, stats) => {
-							if (err) throw err;
-								statsDefer.resolve(this.getStatsValues(stats));
-						});
-					}
-				});
-			} catch (err) {
-				statsDefer.resolve(null);
-				console.error(err);
-			}
-		});
-		return statsDefer.promise;
+        this.waitForDefered(() => {
+            try {
+                this.fs.lstat(path, (err, stats) => {
+                    if (err) throw err;
+                    if (stats.isSymbolicLink()) {//this method is valid only when calling fs.lstat() (NOT fs.stat())
+                        statsDefer.resolve(this.getStatsValues(stats))
+                    } else {
+                        this.fs.stat(path, (err, stats) => {
+                            if (err) throw err;
+                                statsDefer.resolve(this.getStatsValues(stats));
+                        });
+                    }
+                });
+            } catch (err) {
+                statsDefer.resolve(null);
+                console.error(err);
+            }
+        });
+        return statsDefer.promise;
     }
 
     /**
@@ -525,7 +523,7 @@ export class NGDesktopFileService {
             }
             this.defer.resolve(null);
             this.defer = null;
-        });	
+        }); 
         return appendDefer.promise;
     }
 
@@ -539,20 +537,20 @@ export class NGDesktopFileService {
      */
      copyFile(src: string, dest: string, overwriteDest: boolean) {
         const copyDefer = new Deferred();
-		this.waitForDefered(() => {
-			this.defer = new Deferred();
-			var mode = (overwriteDest === false) ? 1 : 0; 						
-			if(src && dest) {
-				this.fs.copyFile(src, dest, mode, (err) => {
-					this.resolveBooleanDefer(err, copyDefer);
-				});
-			} else {
-				copyDefer.resolve(false);
-			}
-			this.defer.resolve(null);
-			this.defer = null;
-		});
-		return copyDefer.promise;
+        this.waitForDefered(() => {
+            this.defer = new Deferred();
+            var mode = (overwriteDest === false) ? 1 : 0;                       
+            if(src && dest) {
+                this.fs.copyFile(src, dest, mode, (err) => {
+                    this.resolveBooleanDefer(err, copyDefer);
+                });
+            } else {
+                copyDefer.resolve(false);
+            }
+            this.defer.resolve(null);
+            this.defer = null;
+        });
+        return copyDefer.promise;
     }
 
 
@@ -564,19 +562,19 @@ export class NGDesktopFileService {
      */
     createFolder(path: string) {
         const createDefer = new Deferred();
-		this.waitForDefered(() => {
-			this.defer = new Deferred();
-			if(path) {
-				this.fs.mkdir(path, { recursive: true }, (err) => {
-					this.resolveBooleanDefer(err, createDefer);
-				});
-			} else {
-				createDefer.resolve(false);
-			}
-			this.defer.resolve(null);
-			this.defer = null;
-		});
-		return createDefer.promise;
+        this.waitForDefered(() => {
+            this.defer = new Deferred();
+            if(path) {
+                this.fs.mkdir(path, { recursive: true }, (err) => {
+                    this.resolveBooleanDefer(err, createDefer);
+                });
+            } else {
+                createDefer.resolve(false);
+            }
+            this.defer.resolve(null);
+            this.defer = null;
+        });
+        return createDefer.promise;
     }
 
 
@@ -588,19 +586,19 @@ export class NGDesktopFileService {
      */
      deleteFolder(path: string) {
         const deleteDefer = new Deferred();
-		this.waitForDefered(() => {
-			this.defer = new Deferred();
-			if(path) {
-				this.fs.rmdir(path, (err) => {
-					this.resolveBooleanDefer(err, deleteDefer);
-				});
-			} else {
-				deleteDefer.resolve(false);
-			}
-			this.defer.resolve(null);
-			this.defer = null;
-		});
-		return deleteDefer.promise;
+        this.waitForDefered(() => {
+            this.defer = new Deferred();
+            if(path) {
+                this.fs.rmdir(path, (err) => {
+                    this.resolveBooleanDefer(err, deleteDefer);
+                });
+            } else {
+                deleteDefer.resolve(false);
+            }
+            this.defer.resolve(null);
+            this.defer = null;
+        });
+        return deleteDefer.promise;
     }
 
     /**
@@ -634,24 +632,24 @@ export class NGDesktopFileService {
      */
      writeTXTFileSync(path: string, text_data: string, encoding: BufferEncoding) {
         const writeDefer = new Deferred();
-		this.waitForDefered(() => {
-			this.defer = new Deferred();
-			text_data = text_data || '';
-    		const options: fs.WriteFileOptions = { encoding: 'utf8' };
-			if(encoding) {
-				options.encoding = encoding;
-			}
-			if(path) {
-				this.fs.writeFile(path, text_data, options, (err) => {
-					this.resolveBooleanDefer(err, writeDefer);
-				});
-			} else {
-				writeDefer.resolve(false);
-			}
-			this.defer.resolve(null);
-			this.defer = null;
-		});
-		return writeDefer.promise;
+        this.waitForDefered(() => {
+            this.defer = new Deferred();
+            text_data = text_data || '';
+            const options: fs.WriteFileOptions = { encoding: 'utf8' };
+            if(encoding) {
+                options.encoding = encoding;
+            }
+            if(path) {
+                this.fs.writeFile(path, text_data, options, (err) => {
+                    this.resolveBooleanDefer(err, writeDefer);
+                });
+            } else {
+                writeDefer.resolve(false);
+            }
+            this.defer.resolve(null);
+            this.defer = null;
+        });
+        return writeDefer.promise;
     }
 
 
@@ -665,13 +663,13 @@ export class NGDesktopFileService {
      */
      readTXTFileSync(path: string, encoding: BufferEncoding) {
         const readDefer = new Deferred();
-		this.waitForDefered(() => {
-		    this.defer = new Deferred();
-			const options: fs.ObjectEncodingOptions = { encoding: 'utf8' };
-			if(encoding) {
-				options.encoding = encoding;
-			}
-			if(path) {
+        this.waitForDefered(() => {
+            this.defer = new Deferred();
+            const options: fs.ObjectEncodingOptions = { encoding: 'utf8' };
+            if(encoding) {
+                options.encoding = encoding;
+            }
+            if(path) {
                 this.fs.readFile(path, options, (err,data) => {
                     if (err) {
                         readDefer.resolve(null);
@@ -680,13 +678,13 @@ export class NGDesktopFileService {
                         readDefer.resolve(data);
                     }
                 });
-			} else {
-				readDefer.resolve(null);
-			}
-			this.defer.resolve(null);
-			this.defer = null
-		});
-		return readDefer.promise;
+            } else {
+                readDefer.resolve(null);
+            }
+            this.defer.resolve(null);
+            this.defer = null
+        });
+        return readDefer.promise;
     }
 
         /**
@@ -713,7 +711,7 @@ export class NGDesktopFileService {
                     }
                 } else {
                     deferRO.resolve(false);
-                }	
+                }   
                 this.defer.resolve(null);
                 this.defer = null;
             });
@@ -758,40 +756,107 @@ export class NGDesktopFileService {
     }
 
     private saveUrlToPath(dir: string, realPath: string, url: string, callback: { formname: string; script: string }) {
+        var writeDefer = null;
         this.fs.mkdir(dir, { recursive: true }, (err) => {
             if (err) {
                 this.defer.resolve(false);
                 this.defer = null;
                 throw err;
             } else {
-                const pipe = this.request(this.getFullUrl(url)).pipe(this.fs.createWriteStream(realPath));
-                pipe.on('error', (err2: Error) => {
-                    if (callback) this.servoyService.executeInlineScript(callback.formname, callback.script, ['error']);
-                    this.defer.resolve(false);
-                    this.defer = null;
-                    throw err2;
+                var firstWrite = true;
+                var fileSize = 0;
+                var writeSize = 0;
+                const request = this.net.request(
+                    {
+                        url: this.getFullUrl(url),
+                        session: this.remote.getCurrentWebContents().session,
+                        useSessionCookies: true 
+                    }
+                 );
+
+                request.on('response', (response) => {
+                    fileSize = parseInt(response.headers['content-length'], 10);
+                    response.on('data', (chunk) => {
+                        this.waitForLocalDefered(writeDefer, () => {
+                            writeDefer = new Deferred();
+                            if (firstWrite == true) {
+                                firstWrite = false;
+                                
+                                this.fs.writeFile(realPath, chunk, (err) => {
+                                    if (err) {
+                                        this.defer.resolve(false); //global defer
+                                        this.defer = null;
+                                        throw err;
+                                    }
+                                });
+                            } else {
+                                this.fs.appendFile(realPath, chunk, (err) => {
+                                    if (err) {
+                                        this.defer.resolve(false); //global defer
+                                        this.defer = null;
+                                        throw err;
+                                    }
+                                });
+                            } 
+                            writeSize = writeSize + chunk.length;
+
+                            if (writeSize === fileSize) {
+                                this.defer.resolve(true);
+                                this.defer = null;
+                            }
+                            writeDefer.resolve(null);
+                            writeDefer = null;
+                        })
+                    });
                 });
-                pipe.on('close', () => {
-                    this.defer.resolve(true);
-                    if (callback) this.servoyService.executeInlineScript(callback.formname, callback.script, ['close']); 
+
+                request.on('abort', () => {
+                    this.defer.resolve(false); //global defer
                     this.defer = null;
                 });
+                request.on('error', (err) => {
+                    this.defer.resolve(false); //global defer
+                    this.defer = null;
+                    if (err) throw err;
+                });
+                request.setHeader('Content-Type', 'application/json');
+                request.end();
             }
         });
     }
 
     private readUrlFromPath(path: string, id: string) {
-        const formData = {
-            path,
-            id,
-            file: this.fs.createReadStream(path)
-        };
-        this.request.post({ url: this.getFullUrl(this.servoyService.generateServiceUploadUrl('ngdesktopfile', 'callback')), formData },
-            (err: Error) => {
-                if (err) {
-                    return this.log.error('upload failed:', err);
-                }
-            });
+
+        
+        const form = new this.formData();
+
+        form.append('path', path);
+        form.append('id', id);
+        form.append('file', this.fs.createReadStream(path, {highWaterMark : 8192 * 1024})); //internal buffer size
+        const fullUrl = this.getFullUrl(this.servoyService.generateServiceUploadUrl('ngdesktopfile', 'callback'));
+
+        const request = this.net.request({
+            method: 'POST',
+            url: fullUrl,
+            session: this.remote.getCurrentWebContents().session,
+            useSessionCookies: true
+        });
+        const headers = form.getHeaders();
+        request.setHeader('content-type', headers['content-type']);
+        form.pipe(request);
+        request.on('error', (err) => {
+            if (this.defer) {
+                this.defer.resolve(false);
+                this.defer = null;
+            }
+            if (err) throw err;
+        });
+        request.on('response', (response) => {
+            if (this.defer) {
+                this.defer.resolve(true);
+                this.defer = null;
+            }
+        });
     }
 
     resolveBooleanDefer(err, localDefer) {
@@ -832,9 +897,9 @@ export class NGDesktopFileService {
 
     isReadOnly(mode: number) {
         switch (mode) {
-            case 33060: 	// r--r--r--
-            case 33056:		// r--r-----
-            case 33024: 	// r--------
+            case 33060:     // r--r--r--
+            case 33056:     // r--r-----
+            case 33024:     // r--------
                 return true;;
             default:
                 return false; 
