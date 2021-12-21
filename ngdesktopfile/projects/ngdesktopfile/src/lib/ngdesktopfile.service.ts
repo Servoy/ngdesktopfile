@@ -49,15 +49,6 @@ export class NGDesktopFileService {
         } else return func();
     }
 
-    waitForLocalDefered<T>(localDefer, func: () => T | Promise<T>) {
-        if (localDefer != null) {
-            return localDefer.promise.then(() => {
-                return this.waitForLocalDefered(localDefer, func); //avoid multiple calls to the same defer to be executed cncurently
-            })
-        }
-        else func();
-    }
-
     /**
      * Returns the home dir of the user like c:/users/[username] under windows.
      * Will return always a both with forward slashes.
@@ -405,15 +396,16 @@ export class NGDesktopFileService {
 
     /**
      * Delete the given file, returning a boolean indicating success or failure
-     * @param {String} path
-     * @return {boolean}
+     *
+     * @param path
+     * @return
      */
-     deleteFileSync(path: string) {
+    deleteFileSync(path: string) {
         const deleteDefer = new Deferred();
         this.waitForDefered(() => {
             this.defer = new Deferred();
             this.fs.unlink(path, (err) => {
-                this.resolveBooleanDefer(err,deleteDefer);
+                this.resolveBooleanDefer(err, deleteDefer);
             });
             this.defer.resolve(null);
             this.defer = null;
@@ -427,7 +419,7 @@ export class NGDesktopFileService {
      * @param path
      * @param [errorCallback]
      */
-     deleteFile(path: string, errorCallback: { formname: string; script: string }) {
+    deleteFile(path: string, errorCallback: { formname: string; script: string }) {
         this.waitForDefered(() => {
             this.defer = new Deferred();
             this.fs.unlink(path, (err) => {
@@ -435,7 +427,7 @@ export class NGDesktopFileService {
             });
             this.defer.resolve(null);
             this.defer = null;
-        })
+        });
     }
 
 
@@ -445,18 +437,18 @@ export class NGDesktopFileService {
      *
      * @return
      */
-     getFileStats(path: string) {
+    getFileStats(path: string) {
         const statsDefer = new Deferred();
         this.waitForDefered(() => {
             try {
                 this.fs.lstat(path, (err, stats) => {
                     if (err) throw err;
                     if (stats.isSymbolicLink()) {//this method is valid only when calling fs.lstat() (NOT fs.stat())
-                        statsDefer.resolve(this.getStatsValues(stats))
+                        statsDefer.resolve(this.getStatsValues(stats));
                     } else {
-                        this.fs.stat(path, (err, stats) => {
-                            if (err) throw err;
-                                statsDefer.resolve(this.getStatsValues(stats));
+                        this.fs.stat(path, (error, stats2) => {
+                            if (error) throw error;
+                            statsDefer.resolve(this.getStatsValues(stats2));
                         });
                     }
                 });
@@ -487,13 +479,13 @@ export class NGDesktopFileService {
      * @param path - file's full path
      * @return
      */
-     exists(path: string) {
+    exists(path: string) {
         const existsDefer = new Deferred();
         this.waitForDefered(() => {
             try {
                 if (path) {
                     existsDefer.resolve(this.fs.existsSync(path));
-                }   
+                }
             } catch (err) {
                 existsDefer.resolve(false);
             }
@@ -509,12 +501,12 @@ export class NGDesktopFileService {
      * @param [encoding] - default utf8
      * @return
      */
-     appendToTXTFile(path: string, text: string, encoding: string) {
-        var appendDefer = new Deferred();
+    appendToTXTFile(path: string, text: string, encoding: string) {
+        const appendDefer = new Deferred();
         this.waitForDefered(() => {
             this.defer = new Deferred();
-            const enc: WriteFileOptions= encoding as WriteFileOptions || null;
-            if(path && text) {
+            const enc: WriteFileOptions = encoding as WriteFileOptions || null;
+            if (path && text) {
                 this.fs.appendFile(path, text, enc, (err) => {
                     this.resolveBooleanDefer(err, appendDefer);
                 });
@@ -523,7 +515,7 @@ export class NGDesktopFileService {
             }
             this.defer.resolve(null);
             this.defer = null;
-        }); 
+        });
         return appendDefer.promise;
     }
 
@@ -535,12 +527,12 @@ export class NGDesktopFileService {
      * @param [overwriteDest] - default true
      * @return
      */
-     copyFile(src: string, dest: string, overwriteDest: boolean) {
+    copyFile(src: string, dest: string, overwriteDest: boolean) {
         const copyDefer = new Deferred();
         this.waitForDefered(() => {
             this.defer = new Deferred();
-            var mode = (overwriteDest === false) ? 1 : 0;                       
-            if(src && dest) {
+            const mode = (overwriteDest === false) ? 1 : 0;
+            if (src && dest) {
                 this.fs.copyFile(src, dest, mode, (err) => {
                     this.resolveBooleanDefer(err, copyDefer);
                 });
@@ -564,7 +556,7 @@ export class NGDesktopFileService {
         const createDefer = new Deferred();
         this.waitForDefered(() => {
             this.defer = new Deferred();
-            if(path) {
+            if (path) {
                 this.fs.mkdir(path, { recursive: true }, (err) => {
                     this.resolveBooleanDefer(err, createDefer);
                 });
@@ -584,11 +576,11 @@ export class NGDesktopFileService {
      * @param path - folders full path
      * @return
      */
-     deleteFolder(path: string) {
+    deleteFolder(path: string) {
         const deleteDefer = new Deferred();
         this.waitForDefered(() => {
             this.defer = new Deferred();
-            if(path) {
+            if (path) {
                 this.fs.rmdir(path, (err) => {
                     this.resolveBooleanDefer(err, deleteDefer);
                 });
@@ -630,16 +622,16 @@ export class NGDesktopFileService {
      *
      * @return
      */
-     writeTXTFileSync(path: string, text_data: string, encoding: BufferEncoding) {
+    writeTXTFileSync(path: string, text_data: string, encoding: BufferEncoding) {
         const writeDefer = new Deferred();
         this.waitForDefered(() => {
             this.defer = new Deferred();
             text_data = text_data || '';
             const options: fs.WriteFileOptions = { encoding: 'utf8' };
-            if(encoding) {
+            if (encoding) {
                 options.encoding = encoding;
             }
-            if(path) {
+            if (path) {
                 this.fs.writeFile(path, text_data, options, (err) => {
                     this.resolveBooleanDefer(err, writeDefer);
                 });
@@ -661,16 +653,16 @@ export class NGDesktopFileService {
      *
      * @return
      */
-     readTXTFileSync(path: string, encoding: BufferEncoding) {
+    readTXTFileSync(path: string, encoding: BufferEncoding) {
         const readDefer = new Deferred();
         this.waitForDefered(() => {
             this.defer = new Deferred();
             const options: fs.ObjectEncodingOptions = { encoding: 'utf8' };
-            if(encoding) {
+            if (encoding) {
                 options.encoding = encoding;
             }
-            if(path) {
-                this.fs.readFile(path, options, (err,data) => {
+            if (path) {
+                this.fs.readFile(path, options, (err, data) => {
                     if (err) {
                         readDefer.resolve(null);
                         console.error(err);
@@ -682,72 +674,72 @@ export class NGDesktopFileService {
                 readDefer.resolve(null);
             }
             this.defer.resolve(null);
-            this.defer = null
+            this.defer = null;
         });
         return readDefer.promise;
     }
 
-        /**
-         * Set permisions to the specified file. 
-         * If readOnly parameter is false, the file permisions flags will be set to read/write mod* 
-         * 
-         * @param path - file path
-         * 
-         * @return 
-         */
-        setReadOnly(path: string, flag: boolean) {
-            const deferRO = new Deferred();
-            this.waitForDefered(() => {
-                this.defer = new Deferred();
-                if (path) {
-                    if (flag) {
-                        this.fs.chmod(path, 0o444, (err) => {
-                            this.resolveBooleanDefer(err, deferRO);
-                        });
+    /**
+     * Set permisions to the specified file.
+     * If readOnly parameter is false, the file permisions flags will be set to read/write mod*
+     *
+     * @param path - file path
+     *
+     * @return
+     */
+    setReadOnly(path: string, flag: boolean) {
+        const deferRO = new Deferred();
+        this.waitForDefered(() => {
+            this.defer = new Deferred();
+            if (path) {
+                if (flag) {
+                    this.fs.chmod(path, 0o444, (err) => {
+                        this.resolveBooleanDefer(err, deferRO);
+                    });
+                } else {
+                    this.fs.chmod(path, 0o644, (err) => {
+                        this.resolveBooleanDefer(err, deferRO);
+                    });
+                }
+            } else {
+                deferRO.resolve(false);
+            }
+            this.defer.resolve(null);
+            this.defer = null;
+        });
+        return deferRO.promise;
+    }
+
+    /**
+     * Verify readonly status on the specified path. Returns true for readonly otherwise false
+     *
+     * @param path - directory's full path
+     *
+     * @return
+     */
+    getReadOnly(path: string) {
+        const deferRO = new Deferred();
+        this.waitForDefered(() => {
+            try {
+                this.fs.lstat(path, (err, stats) => {
+                    if (err) throw err;
+                    if (stats.isSymbolicLink()) {//this method is valid only when calling fs.lstat() (NOT fs.stat())
+                        deferRO.resolve(this.isReadOnly(stats.mode));
                     } else {
-                        this.fs.chmod(path, 0o644, (err) => {
-                            this.resolveBooleanDefer(err, deferRO);
+                        this.fs.stat(path, (error, stats2) => {
+                            if (error) throw error;
+                            deferRO.resolve(this.isReadOnly(stats2.mode));
                         });
                     }
-                } else {
-                    deferRO.resolve(false);
-                }   
-                this.defer.resolve(null);
-                this.defer = null;
-            });
-            return deferRO.promise;
-        }
-    
-        /**
-         * Verify readonly status on the specified path. Returns true for readonly otherwise false
-         * 
-         * @param path - directory's full path
-         * 
-         * @return
-         */
-         getReadOnly(path: string) {
-            const deferRO = new Deferred();
-            this.waitForDefered(() => {
-                try {
-                    this.fs.lstat(path, (err, stats) => {
-                        if (err) throw err;
-                        if (stats.isSymbolicLink()) {//this method is valid only when calling fs.lstat() (NOT fs.stat())
-                            deferRO.resolve(this.isReadOnly(stats.mode));
-                        } else {
-                            this.fs.stat(path, (err, stats) => {
-                                if (err) throw err;
-                                deferRO.resolve(this.isReadOnly(stats.mode));
-                            });
-                        }
-                    });
-                } catch (err) {
-                    deferRO.resolve(false);
-                    console.error(err);
-                }
-            })
-            return deferRO.promise;
-        }
-    
+                });
+            } catch (err) {
+                deferRO.resolve(false);
+                console.error(err);
+            }
+        });
+        return deferRO.promise;
+    }
+
 
     private getFullUrl(url: string) {
         let base = document.baseURI;
@@ -756,57 +748,51 @@ export class NGDesktopFileService {
     }
 
     private saveUrlToPath(dir: string, realPath: string, url: string, callback: { formname: string; script: string }) {
-        var writeDefer = null;
         this.fs.mkdir(dir, { recursive: true }, (err) => {
             if (err) {
                 this.defer.resolve(false);
                 this.defer = null;
                 throw err;
             } else {
-                var firstWrite = true;
-                var fileSize = 0;
-                var writeSize = 0;
+                let firstWrite = true;
+                let fileSize = 0;
+                let writeSize = 0;
                 const request = this.net.request(
                     {
                         url: this.getFullUrl(url),
                         session: this.remote.getCurrentWebContents().session,
-                        useSessionCookies: true 
+                        useSessionCookies: true
                     }
-                 );
+                ) as electron.ClientRequest;
 
                 request.on('response', (response) => {
-                    fileSize = parseInt(response.headers['content-length'], 10);
+                    fileSize = parseInt(response.headers['content-length'] as string, 10);
                     response.on('data', (chunk) => {
-                        this.waitForLocalDefered(writeDefer, () => {
-                            writeDefer = new Deferred();
-                            if (firstWrite == true) {
-                                firstWrite = false;
-                                
-                                this.fs.writeFile(realPath, chunk, (err) => {
-                                    if (err) {
-                                        this.defer.resolve(false); //global defer
-                                        this.defer = null;
-                                        throw err;
-                                    }
-                                });
-                            } else {
-                                this.fs.appendFile(realPath, chunk, (err) => {
-                                    if (err) {
-                                        this.defer.resolve(false); //global defer
-                                        this.defer = null;
-                                        throw err;
-                                    }
-                                });
-                            } 
-                            writeSize = writeSize + chunk.length;
+                        if (firstWrite === true) {
+                            firstWrite = false;
 
-                            if (writeSize === fileSize) {
-                                this.defer.resolve(true);
-                                this.defer = null;
-                            }
-                            writeDefer.resolve(null);
-                            writeDefer = null;
-                        })
+                            this.fs.writeFile(realPath, chunk, (error) => {
+                                if (error) {
+                                    this.defer.resolve(false); //global defer
+                                    this.defer = null;
+                                    throw error;
+                                }
+                            });
+                        } else {
+                            this.fs.appendFile(realPath, chunk, (error) => {
+                                if (error) {
+                                    this.defer.resolve(false); //global defer
+                                    this.defer = null;
+                                    throw error;
+                                }
+                            });
+                        }
+                        writeSize = writeSize + chunk.length;
+
+                        if (writeSize === fileSize) {
+                            this.defer.resolve(true);
+                            this.defer = null;
+                        }
                     });
                 });
 
@@ -814,10 +800,10 @@ export class NGDesktopFileService {
                     this.defer.resolve(false); //global defer
                     this.defer = null;
                 });
-                request.on('error', (err) => {
+                request.on('error', (error) => {
                     this.defer.resolve(false); //global defer
                     this.defer = null;
-                    if (err) throw err;
+                    if (error) throw error;
                 });
                 request.setHeader('Content-Type', 'application/json');
                 request.end();
@@ -827,12 +813,12 @@ export class NGDesktopFileService {
 
     private readUrlFromPath(path: string, id: string) {
 
-        
+
         const form = new this.formData();
 
         form.append('path', path);
         form.append('id', id);
-        form.append('file', this.fs.createReadStream(path, {highWaterMark : 8192 * 1024})); //internal buffer size
+        form.append('file', this.fs.createReadStream(path, { highWaterMark: 8192 * 1024 })); //internal buffer size
         const fullUrl = this.getFullUrl(this.servoyService.generateServiceUploadUrl('ngdesktopfile', 'callback'));
 
         const request = this.net.request({
@@ -840,7 +826,7 @@ export class NGDesktopFileService {
             url: fullUrl,
             session: this.remote.getCurrentWebContents().session,
             useSessionCookies: true
-        });
+        }) as electron.ClientRequest;
         const headers = form.getHeaders();
         request.setHeader('content-type', headers['content-type']);
         form.pipe(request);
@@ -851,7 +837,7 @@ export class NGDesktopFileService {
             }
             if (err) throw err;
         });
-        request.on('response', (response) => {
+        request.on('response', () => {
             if (this.defer) {
                 this.defer.resolve(true);
                 this.defer = null;
@@ -859,7 +845,7 @@ export class NGDesktopFileService {
         });
     }
 
-    resolveBooleanDefer(err, localDefer) {
+    private resolveBooleanDefer(err, localDefer) {
         if (err) {
             localDefer.resolve(false);
             console.error(err);
@@ -868,41 +854,41 @@ export class NGDesktopFileService {
         }
     }
 
-    getStatsValues(fsStats) {
-        var retStats = {
-            "isBlockDevice": fsStats.isBlockDevice(),
-            "isCharacterDevice": fsStats.isCharacterDevice(),
-            "isDirectory": fsStats.isDirectory(),
-            "isFIFO": fsStats.isFIFO(),
-            "isFile": fsStats.isFile(),
-            "isSocket": fsStats.isSocket(),
-            "isSymbolicLink": fsStats.isSymbolicLink(),
-            "dev": fsStats.dev,
-            "ino": fsStats.ino,
-            "mode": fsStats.mode,
-            "nlink": fsStats.nlink,
-            "uid": fsStats.uid,
-            "gid": fsStats.gid,
-            "rdev": fsStats.rdev,
-            "size": fsStats.size,
-            "blksize": fsStats.blksize,
-            "blocks": fsStats.blocks,
-            "atimeMs": fsStats.atimeMs,
-            "mtimeMs": fsStats.mtimeMs,
-            "ctimeMs": fsStats.ctimeMs,
-            "birthtimeMs": fsStats.birthtimeMs
+    private getStatsValues(fsStats) {
+        const retStats = {
+            isBlockDevice: fsStats.isBlockDevice(),
+            isCharacterDevice: fsStats.isCharacterDevice(),
+            isDirectory: fsStats.isDirectory(),
+            isFIFO: fsStats.isFIFO(),
+            isFile: fsStats.isFile(),
+            isSocket: fsStats.isSocket(),
+            isSymbolicLink: fsStats.isSymbolicLink(),
+            dev: fsStats.dev,
+            ino: fsStats.ino,
+            mode: fsStats.mode,
+            nlink: fsStats.nlink,
+            uid: fsStats.uid,
+            gid: fsStats.gid,
+            rdev: fsStats.rdev,
+            size: fsStats.size,
+            blksize: fsStats.blksize,
+            blocks: fsStats.blocks,
+            atimeMs: fsStats.atimeMs,
+            mtimeMs: fsStats.mtimeMs,
+            ctimeMs: fsStats.ctimeMs,
+            birthtimeMs: fsStats.birthtimeMs
         };
         return retStats;
     }
 
-    isReadOnly(mode: number) {
+    private isReadOnly(mode: number) {
         switch (mode) {
             case 33060:     // r--r--r--
             case 33056:     // r--r-----
             case 33024:     // r--------
                 return true;;
             default:
-                return false; 
+                return false;
         }
     }
 
