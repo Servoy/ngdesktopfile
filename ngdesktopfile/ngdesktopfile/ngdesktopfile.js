@@ -79,20 +79,9 @@ angular.module('ngdesktopfile',['servoy'])
 			}
 			else func();
 		}
-		function waitForLocalDefered(localDefer, func) {
-			if (localDefer != null) {
-				return localDefer.promise.then(function(){
-					return waitForLocalDefered(localDefer, func); //avoid multiple calls to the same defer to be executed cncurently
-				})
-			}
-			else func();
-		}
 		return {
 			waitForDefered: function(func) {
 				waitForDefered(func);
-			},
-			waitForLocalDefered: function(defer, func) {
-				waitForLocalDefered(defer, func);
 			},
 			/**
 			 * Returns the home dir of the user like c:/users/[username] under windows.
@@ -217,7 +206,6 @@ angular.module('ngdesktopfile',['servoy'])
 			},
 			writeFileImpl: function(path, url, callback) {
 				waitForDefered(function() {
-					var writeDefer = null;
 					function saveUrlToPath(dir, realPath) {
 					    fs.mkdir(dir, { recursive: true }, function(err) {
 					    	if (err) {
@@ -240,35 +228,30 @@ angular.module('ngdesktopfile',['servoy'])
 								request.on('response', (response) => {
 									fileSize = parseInt(response.headers['content-length'], 10);
 									response.on('data', (chunk) => {
-										waitForLocalDefered(writeDefer, function() {
-											writeDefer = $q.defer();
-											if (firstWrite == true) {
-												firstWrite = false;
-												fs.writeFile(realPath, chunk, function(err) {
-													if (err) {
-														defer.resolve(false); //global defer
-														defer = null;
-														throw err;
-													}
-												});
-											} else {
-												fs.appendFile(realPath, chunk, function(err) {
-													if (err) {
-														defer.resolve(false); //global defer
-														defer = null;
-														throw err;
-													}
-												});
-											} 
-											writeSize = writeSize + chunk.length;
+										if (firstWrite == true) {
+											firstWrite = false;
+											fs.writeFile(realPath, chunk, function(err) {
+												if (err) {
+													defer.resolve(false); //global defer
+													defer = null;
+													throw err;
+												}
+											});
+										} else {
+											fs.appendFile(realPath, chunk, function(err) {
+												if (err) {
+													defer.resolve(false); //global defer
+													defer = null;
+													throw err;
+												}
+											});
+										} 
+										writeSize = writeSize + chunk.length;
 
-											if (writeSize === fileSize) {
-												defer.resolve(true);
-												defer = null;
-											}
-											writeDefer.resolve(null);
-											writeDefer = null;
-										})
+										if (writeSize === fileSize) {
+											defer.resolve(true);
+											defer = null;
+										}
 									});
 								});
 
