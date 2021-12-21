@@ -217,6 +217,7 @@ angular.module('ngdesktopfile',['servoy'])
 								var firstWrite = true;
 								var fileSize = 0;
 								var writeSize = 0;
+								var errorReceived = false;
 								const request = net.request(
 									{
 										url: getFullUrl(url),
@@ -232,6 +233,8 @@ angular.module('ngdesktopfile',['servoy'])
 											firstWrite = false;
 											fs.writeFile(realPath, chunk, function(err) {
 												if (err) {
+													if (callback)
+														$window.executeInlineScript(callback.formname, callback.script, ['error']);
 													defer.resolve(false); //global defer
 													defer = null;
 													throw err;
@@ -240,6 +243,8 @@ angular.module('ngdesktopfile',['servoy'])
 										} else {
 											fs.appendFile(realPath, chunk, function(err) {
 												if (err) {
+													if (callback)
+														$window.executeInlineScript(callback.formname, callback.script, ['error']);
 													defer.resolve(false); //global defer
 													defer = null;
 													throw err;
@@ -254,16 +259,27 @@ angular.module('ngdesktopfile',['servoy'])
 										}
 									});
 								});
+								
+								request.on('error', (err) => {//called only for network error
+									if (callback) {
+										$window.executeInlineScript(callback.formname, callback.script, ['error']);
+									}
+									if (defer != null) {
+										defer.resolve(false); //global defer
+										defer = null;
+									}
+									if (err) {
+										errorReceived = true;
+										throw err;
+									}
+								});
 
-								request.on('abort', () => {
-									defer.resolve(false); //global defer
-									defer = null;
+								request.on('close', () => {//close may be emitted due to a previous error event. In this case the callback was already called;
+									if ((callback) && (errorReceived === false)) {
+										$window.executeInlineScript(callback.formname, callback.script, ['close']);
+									}
 								});
-								request.on('error', (err) => {
-									defer.resolve(false); //global defer
-									defer = null;
-									if (err) throw err;
-								});
+
 								request.setHeader('Content-Type', 'application/json');
 								request.end();
 					    	}

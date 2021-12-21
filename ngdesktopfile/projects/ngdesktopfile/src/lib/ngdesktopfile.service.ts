@@ -757,13 +757,13 @@ export class NGDesktopFileService {
                 let firstWrite = true;
                 let fileSize = 0;
                 let writeSize = 0;
-                const request = this.net.request(
-                    {
-                        url: this.getFullUrl(url),
-                        session: this.remote.getCurrentWebContents().session,
-                        useSessionCookies: true
-                    }
-                ) as electron.ClientRequest;
+                let errorReceived = false;
+                
+                const request = this.net.request({
+                    url: this.getFullUrl(url),
+                    session: this.remote.getCurrentWebContents().session,
+                    useSessionCookies: true
+                }) as electron.ClientRequest;
 
                 request.on('response', (response) => {
                     fileSize = parseInt(response.headers['content-length'] as string, 10);
@@ -773,6 +773,9 @@ export class NGDesktopFileService {
 
                             this.fs.writeFile(realPath, chunk, (error) => {
                                 if (error) {
+                                    if (callback) {
+                                        this.servoyService.executeInlineScript(callback.formname, callback.script, ['error']);
+                                    }
                                     this.defer.resolve(false); //global defer
                                     this.defer = null;
                                     throw error;
@@ -781,6 +784,9 @@ export class NGDesktopFileService {
                         } else {
                             this.fs.appendFile(realPath, chunk, (error) => {
                                 if (error) {
+                                    if (callback) {
+                                        this.servoyService.executeInlineScript(callback.formname, callback.script, ['error']);
+                                    }
                                     this.defer.resolve(false); //global defer
                                     this.defer = null;
                                     throw error;
@@ -796,15 +802,27 @@ export class NGDesktopFileService {
                     });
                 });
 
-                request.on('abort', () => {
-                    this.defer.resolve(false); //global defer
-                    this.defer = null;
-                });
                 request.on('error', (error) => {
-                    this.defer.resolve(false); //global defer
-                    this.defer = null;
-                    if (error) throw error;
+                    if (error) {
+                        if (callback) {
+                            this.servoyService.executeInlineScript(callback.formname, callback.script, ['error']);
+                        }
+                        if (this.defer != null) {
+                            this.defer.resolve(false); //global defer
+                            this.defer = null;
+                        }
+                        if (error) {
+                            errorReceived = true;
+                            throw error;
+                        }
+                    }
                 });
+                request.on('close', () => {//close may be emitted due to a previous error event. In this case the callback was already called;
+                    if ((callback) && (errorReceived === false)) {
+                            this.servoyService.executeInlineScript(callback.formname, callback.script, ['close']);
+                    }
+                });
+
                 request.setHeader('Content-Type', 'application/json');
                 request.end();
             }
