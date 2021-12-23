@@ -757,8 +757,8 @@ export class NGDesktopFileService {
                 let firstWrite = true;
                 let fileSize = 0;
                 let writeSize = 0;
-                let errorReceived = false;
-                
+                let callbackAlreadyCalled = false;
+
                 const request = this.net.request({
                     url: this.getFullUrl(url),
                     session: this.remote.getCurrentWebContents().session,
@@ -773,10 +773,8 @@ export class NGDesktopFileService {
 
                             this.fs.writeFile(realPath, chunk, (error) => {
                                 if (error) {
-                                    if (callback) {
-                                        this.servoyService.executeInlineScript(callback.formname, callback.script, ['error']);
-                                    }
-                                    this.defer.resolve(false); //global defer
+                                    callbackAlreadyCalled = this.invokeCallback(callback, callbackAlreadyCalled, 'error');
+                                    this.defer.resolve(false);
                                     this.defer = null;
                                     throw error;
                                 }
@@ -784,10 +782,8 @@ export class NGDesktopFileService {
                         } else {
                             this.fs.appendFile(realPath, chunk, (error) => {
                                 if (error) {
-                                    if (callback) {
-                                        this.servoyService.executeInlineScript(callback.formname, callback.script, ['error']);
-                                    }
-                                    this.defer.resolve(false); //global defer
+                                    callbackAlreadyCalled = this.invokeCallback(callback, callbackAlreadyCalled, 'error');
+                                    this.defer.resolve(false);
                                     this.defer = null;
                                     throw error;
                                 }
@@ -796,6 +792,7 @@ export class NGDesktopFileService {
                         writeSize = writeSize + chunk.length;
 
                         if (writeSize === fileSize) {
+                            callbackAlreadyCalled = this.invokeCallback(callback, callbackAlreadyCalled, 'close');
                             this.defer.resolve(true);
                             this.defer = null;
                         }
@@ -804,23 +801,18 @@ export class NGDesktopFileService {
 
                 request.on('error', (error) => {
                     if (error) {
-                        if (callback) {
-                            this.servoyService.executeInlineScript(callback.formname, callback.script, ['error']);
-                        }
+                        callbackAlreadyCalled = this.invokeCallback(callback, callbackAlreadyCalled, 'error');
                         if (this.defer != null) {
                             this.defer.resolve(false); //global defer
                             this.defer = null;
                         }
                         if (error) {
-                            errorReceived = true;
                             throw error;
                         }
                     }
                 });
                 request.on('close', () => {//close may be emitted due to a previous error event. In this case the callback was already called;
-                    if ((callback) && (errorReceived === false)) {
-                            this.servoyService.executeInlineScript(callback.formname, callback.script, ['close']);
-                    }
+                    callbackAlreadyCalled = this.invokeCallback(callback, callbackAlreadyCalled, 'close');
                 });
 
                 request.setHeader('Content-Type', 'application/json');
@@ -908,6 +900,14 @@ export class NGDesktopFileService {
             default:
                 return false;
         }
+    }
+
+    private invokeCallback(callback: { formname: string; script: string }, callbackAlreadyCalled: boolean, message: string) {
+        if (callback && callbackAlreadyCalled === false) {
+            this.servoyService.executeInlineScript(callback.formname, callback.script, [message]);
+            return true;
+        }
+        return callbackAlreadyCalled;
     }
 
 }

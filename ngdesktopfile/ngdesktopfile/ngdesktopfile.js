@@ -79,6 +79,13 @@ angular.module('ngdesktopfile',['servoy'])
 			}
 			else func();
 		}
+		function invokeCallback(callback, callbackAlreadyCalled, message) {
+			if (callback && callbackAlreadyCalled === false) {
+				$window.executeInlineScript(callback.formname, callback.script, [message]);
+				return true
+			}
+			return callbackAlreadyCalled;
+		}
 		return {
 			waitForDefered: function(func) {
 				waitForDefered(func);
@@ -217,7 +224,7 @@ angular.module('ngdesktopfile',['servoy'])
 								var firstWrite = true;
 								var fileSize = 0;
 								var writeSize = 0;
-								var errorReceived = false;
+								var callbackAlreadyCalled = false; //first callback call will set this flag to true
 								const request = net.request(
 									{
 										url: getFullUrl(url),
@@ -233,9 +240,8 @@ angular.module('ngdesktopfile',['servoy'])
 											firstWrite = false;
 											fs.writeFile(realPath, chunk, function(err) {
 												if (err) {
-													if (callback)
-														$window.executeInlineScript(callback.formname, callback.script, ['error']);
-													defer.resolve(false); //global defer
+													callbackAlreadyCalled = invokeCallback(callback, callbackAlreadyCalled, 'error');
+													defer.resolve(false);
 													defer = null;
 													throw err;
 												}
@@ -243,9 +249,8 @@ angular.module('ngdesktopfile',['servoy'])
 										} else {
 											fs.appendFile(realPath, chunk, function(err) {
 												if (err) {
-													if (callback)
-														$window.executeInlineScript(callback.formname, callback.script, ['error']);
-													defer.resolve(false); //global defer
+													callbackAlreadyCalled = invokeCallback(callback, callbackAlreadyCalled, 'error');	
+													defer.resolve(false);
 													defer = null;
 													throw err;
 												}
@@ -254,6 +259,7 @@ angular.module('ngdesktopfile',['servoy'])
 										writeSize = writeSize + chunk.length;
 
 										if (writeSize === fileSize) {
+											callbackAlreadyCalled = invokeCallback(callback, callbackAlreadyCalled, 'close');
 											defer.resolve(true);
 											defer = null;
 										}
@@ -261,11 +267,9 @@ angular.module('ngdesktopfile',['servoy'])
 								});
 								
 								request.on('error', (err) => {//called only for network error
-									if (callback) {
-										$window.executeInlineScript(callback.formname, callback.script, ['error']);
-									}
+									callbackAlreadyCalled = invokeCallback(callback, callbackAlreadyCalled, 'error');	
 									if (defer != null) {
-										defer.resolve(false); //global defer
+										defer.resolve(false); 
 										defer = null;
 									}
 									if (err) {
@@ -274,10 +278,8 @@ angular.module('ngdesktopfile',['servoy'])
 									}
 								});
 
-								request.on('close', () => {//close may be emitted due to a previous error event. In this case the callback was already called;
-									if ((callback) && (errorReceived === false)) {
-										$window.executeInlineScript(callback.formname, callback.script, ['close']);
-									}
+								request.on('close', () => {
+									callbackAlreadyCalled = invokeCallback(callback, callbackAlreadyCalled, 'close');
 								});
 
 								request.setHeader('Content-Type', 'application/json');
