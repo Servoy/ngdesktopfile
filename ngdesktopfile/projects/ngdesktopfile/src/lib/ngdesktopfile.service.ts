@@ -754,10 +754,8 @@ export class NGDesktopFileService {
                 this.defer = null;
                 throw err;
             } else {
-                let firstWrite = true;
                 let fileSize = 0;
                 let writeSize = 0;
-                let callbackAlreadyCalled = false;
 
                 const request = this.net.request({
                     url: this.getFullUrl(url),
@@ -767,41 +765,22 @@ export class NGDesktopFileService {
 
                 request.on('response', (response) => {
                     fileSize = parseInt(response.headers['content-length'] as string, 10);
+                    const writer = this.fs.createWriteStream(realPath);
                     response.on('data', (chunk) => {
-                        if (firstWrite === true) {
-                            firstWrite = false;
-
-                            this.fs.writeFile(realPath, chunk, (error) => {
-                                if (error) {
-                                    callbackAlreadyCalled = this.invokeCallback(callback, callbackAlreadyCalled, 'error');
-                                    this.defer.resolve(false);
-                                    this.defer = null;
-                                    throw error;
-                                }
-                            });
-                        } else {
-                            this.fs.appendFile(realPath, chunk, (error) => {
-                                if (error) {
-                                    callbackAlreadyCalled = this.invokeCallback(callback, callbackAlreadyCalled, 'error');
-                                    this.defer.resolve(false);
-                                    this.defer = null;
-                                    throw error;
-                                }
-                            });
-                        }
                         writeSize = writeSize + chunk.length;
+						writer.write(chunk);
 
-                        if (writeSize === fileSize) {
-                            callbackAlreadyCalled = this.invokeCallback(callback, callbackAlreadyCalled, 'close');
-                            this.defer.resolve(true);
-                            this.defer = null;
-                        }
+						if (writeSize === fileSize) {
+							this.invokeCallback(callback, 'close');
+							this.defer.resolve(true);
+							this.defer = null;
+						}
                     });
                 });
 
                 request.on('error', (error) => {
                     if (error) {
-                        callbackAlreadyCalled = this.invokeCallback(callback, callbackAlreadyCalled, 'error');
+                        this.invokeCallback(callback, 'error');
                         if (this.defer != null) {
                             this.defer.resolve(false); //global defer
                             this.defer = null;
@@ -811,9 +790,6 @@ export class NGDesktopFileService {
                         }
                     }
                 });
-                request.on('close', () => {//close may be emitted due to a previous error event. In this case the callback was already called;
-                    callbackAlreadyCalled = this.invokeCallback(callback, callbackAlreadyCalled, 'close');
-                });
 
                 request.setHeader('Content-Type', 'application/json');
                 request.end();
@@ -822,8 +798,6 @@ export class NGDesktopFileService {
     }
 
     private readUrlFromPath(path: string, id: string) {
-
-
         const form = new this.formData();
 
         form.append('path', path);
@@ -902,12 +876,12 @@ export class NGDesktopFileService {
         }
     }
 
-    private invokeCallback(callback: { formname: string; script: string }, callbackAlreadyCalled: boolean, message: string) {
-        if (callback && callbackAlreadyCalled === false) {
+    private invokeCallback(callback: { formname: string; script: string }, message: string) {
+        if (callback) {
             this.servoyService.executeInlineScript(callback.formname, callback.script, [message]);
             return true;
         }
-        return callbackAlreadyCalled;
+        return false;
     }
 
 }
