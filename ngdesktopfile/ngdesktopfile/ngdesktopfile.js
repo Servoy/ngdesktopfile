@@ -223,6 +223,7 @@ angular.module('ngdesktopfile',['servoy'])
 					    	else {
 								var fileSize = 0;
 								var writeSize = 0;
+								var writer = null;
 								const request = net.request(
 									{
 										url: getFullUrl(url),
@@ -230,15 +231,16 @@ angular.module('ngdesktopfile',['servoy'])
 										useSessionCookies: true	
 									}
 								 );
-
+								
 								request.on('response', (response) => {
 									fileSize = parseInt(response.headers['content-length'], 10);
-									var writer = fs.createWriteStream(realPath);
+									writer = fs.createWriteStream(realPath);
 									response.on('data', (chunk) => {
 										writeSize = writeSize + chunk.length;
 										writer.write(chunk);
 									
 										if (writeSize === fileSize) {
+											writer.close();
 											invokeCallback(callback, 'close');
 
 											defer.resolve(true);
@@ -248,6 +250,9 @@ angular.module('ngdesktopfile',['servoy'])
 								});
 								
 								request.on('error', (err) => {//called only for network error
+									if ( writer != null) {
+										writer.close();
+									}
 									invokeCallback(callback, 'error');	
 									if (defer != null) {
 										defer.resolve(false); 

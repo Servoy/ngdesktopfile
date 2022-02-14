@@ -756,6 +756,7 @@ export class NGDesktopFileService {
             } else {
                 let fileSize = 0;
                 let writeSize = 0;
+                let writer = null;
 
                 const request = this.net.request({
                     url: this.getFullUrl(url),
@@ -765,12 +766,13 @@ export class NGDesktopFileService {
 
                 request.on('response', (response) => {
                     fileSize = parseInt(response.headers['content-length'] as string, 10);
-                    const writer = this.fs.createWriteStream(realPath);
+                    writer = this.fs.createWriteStream(realPath);
                     response.on('data', (chunk) => {
                         writeSize = writeSize + chunk.length;
 						writer.write(chunk);
 
 						if (writeSize === fileSize) {
+                            writer.close();
 							this.invokeCallback(callback, 'close');
 							this.defer.resolve(true);
 							this.defer = null;
@@ -780,6 +782,9 @@ export class NGDesktopFileService {
 
                 request.on('error', (error) => {
                     if (error) {
+                        if ( writer != null ) {
+                            writer.close();
+                        }
                         this.invokeCallback(callback, 'error');
                         if (this.defer != null) {
                             this.defer.resolve(false); //global defer
