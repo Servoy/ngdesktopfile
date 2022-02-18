@@ -548,7 +548,9 @@ angular.module('ngdesktopfile',['servoy'])
 			getFileStats: function(path) {
 				const statsDefer = $q.defer();
 				waitForDefered(function() {
-					try {
+					if (!fs.existsSync(path)) {
+						statsDefer.resolve(null);
+					} else try {
 						fs.lstat(path, function(err, stats) {
 							if (err) throw err;
 							if (stats.isSymbolicLink()) {//this method is valid only when calling fs.lstat() (NOT fs.stat())

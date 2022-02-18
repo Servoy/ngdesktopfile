@@ -440,7 +440,9 @@ export class NGDesktopFileService {
     getFileStats(path: string) {
         const statsDefer = new Deferred();
         this.waitForDefered(() => {
-            try {
+            if (!this.fs.existsSync(path)) {
+                statsDefer.resolve(null);
+            } else try {
                 this.fs.lstat(path, (err, stats) => {
                     if (err) throw err;
                     if (stats.isSymbolicLink()) {//this method is valid only when calling fs.lstat() (NOT fs.stat())
