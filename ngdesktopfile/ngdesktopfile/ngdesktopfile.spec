@@ -109,6 +109,18 @@
 			],
 			"async-now":true
 		 },
+		 "selectDirectorySync": {
+			"parameters" : [
+				{"name":"path", "type":"string", "optional": true}
+			],
+		 	"returns": "string"
+		 },
+		  "selectFileSync": {
+			"parameters" : [
+				{"name":"path", "type":"string", "optional": true}
+			],
+		 	"returns": "string"
+		 },
 		 "showSaveDialogSync": {
 			"parameters" : [
 				{"name":"options", "type":"object", "optional": true}

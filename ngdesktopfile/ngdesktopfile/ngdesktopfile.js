@@ -389,6 +389,61 @@ angular.module('ngdesktopfile',['servoy'])
 					})
 				})
 			},
+
+			/**
+			* Return the selected folder.
+			*/
+			selectDirectorySync( path ) {
+				const selDirDefer = $q.defer();
+				waitForDefered(function() {
+					var options = {
+							title: "Select folder",
+							...(path != null) && ({defaultPath: path}),
+							buttonLabel : "Select",
+							properties: ['openDirectory']
+					}
+					dialog.showOpenDialog(remote.getCurrentWindow(), options)
+					.then(function(result) {
+						if (!result.canceled) {
+							selDirDefer.resolve(result.filePaths[0]);
+						} else {
+							selDirDefer.resolve(null);
+						}
+					}).catch(function(err) {
+						console.log(err);
+						selDirDefer.resolve(null);
+					})
+				});
+				return selDirDefer.promise;
+			},
+				
+			/**
+			 * Return the selected file.
+			 */
+			selectFileSync( path ) {
+				const selFileDefer = $q.defer();
+				waitForDefered(function() {
+					var options = {
+							title: "Select file",
+							...(path != null) && ({defaultPath: path}),
+							buttonLabel : "Select",
+							properties: ['openFile']
+					}
+					dialog.showOpenDialog(remote.getCurrentWindow(), options)
+					.then(function(result) {
+						if (!result.canceled) {
+							selFileDefer.resolve(result.filePaths[0]);
+						} else {
+							selFileDefer.resolve(null);
+						}
+					}).catch(function(err) {
+						console.log(err);
+						selFileDefer.resolve(null);
+					})
+				});
+				return selFileDefer.promise;
+			},
+
 			/**
 			 * Shows a file save dialog and calls the callback method with the file path
 			 * 
@@ -854,6 +909,8 @@ angular.module('ngdesktopfile',['servoy'])
 			writeFileImpl: function(path, bytes){console.log("not in electron");},
 			readFileImpl: function(path, id, bytes){console.log("not in electron");},
 			selectDirectory: function(callback){console.log("not in electron");},
+			selectDirSync: function(callback){console.log("not in electron");},
+			selectFileSync: function(callback){console.log("not in electron");},
 			showSaveDialog: function(callback){console.log("not in electron");},
 			showSaveDialogSync: function(callback){console.log("not in electron");},
 			showOpenDialog: function(callback){console.log("not in electron");},

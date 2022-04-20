@@ -272,6 +272,64 @@ export class NGDesktopFileService {
     }
 
     /**
+    * Return the selected folder.
+    * 
+    * @param path: initial path
+    */
+    selectDirectorySync( path: string ) {
+        const selDirDefer = new Deferred();
+        this.waitForDefered(() => {
+            const options: electron.OpenDialogOptions = {
+                title: 'Select folder',
+                ...(path != null) && ({defaultPath: path}),
+                buttonLabel: 'Select',
+                properties: ['openDirectory']
+            };
+            this.dialog.showOpenDialog(this.remote.getCurrentWindow(), options)
+                .then((result) => {
+                    if (!result.canceled) {
+                       selDirDefer.resolve(result.filePaths[0]);
+                    } else {
+                        selDirDefer.resolve(null);
+                    }
+                }).catch((err) => {
+                    this.log.info(err);
+                    selDirDefer.resolve(null);
+                });
+        });
+        return selDirDefer.promise;
+    }
+
+    /**
+    * Return the selected file.
+    * 
+    * @param path: initial path
+    */
+     selectFileSync( path: string ) {
+        const selFileDefer = new Deferred();
+        this.waitForDefered(() => {
+            const options: electron.OpenDialogOptions = {
+                title: 'Select file',
+                ...(path != null) && ({defaultPath: path}),
+                buttonLabel: 'Select',
+                properties: ['openFile']
+            };
+            this.dialog.showOpenDialog(this.remote.getCurrentWindow(), options)
+                .then((result) => {
+                    if (!result.canceled) {
+                       selFileDefer.resolve(result.filePaths[0].replace(/\\/g, '/'));
+                    } else {
+                        selFileDefer.resolve(null);
+                    }
+                }).catch((err) => {
+                    this.log.info(err);
+                    selFileDefer.resolve(null);
+                });
+        });
+        return selFileDefer.promise;
+    }
+
+    /**
      * Shows a file save dialog and calls the callback method with the file path
      *
      * For the options object see https://www.electronjs.org/docs/api/dialog#dialogshowsavedialogbrowserwindow-options
