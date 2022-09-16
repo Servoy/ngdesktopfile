@@ -3,6 +3,7 @@
     "displayName": "NG-Desktop File plug-in",
     "packageType": "Web-Service",
     "icon": "https://upload.wikimedia.org/wikipedia/commons/thumb/0/0c/File_alt_font_awesome.svg/512px-File_alt_font_awesome.svg.png",
+    "invertIcon": true,
     "description": "Webservice for file I/O in NGDesktop client",
     "wikiUrl": "https://github.com/Servoy/ngdesktopfile/wiki",
     "sourceUrl": "https://github.com/Servoy/ngdesktopfile",
