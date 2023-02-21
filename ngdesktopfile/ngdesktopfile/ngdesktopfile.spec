@@ -222,7 +222,7 @@
 			"parameters" : [
 				{"name":"path", "type":"string"},
 				{"name":"key", "type":"string"},
-                {"name":"syncDefer", "type":"object", "optional":"true"}
+                {"name":"defer", "type":"object", "optional":"true"}
 			],
 			"async-now":true
 		},

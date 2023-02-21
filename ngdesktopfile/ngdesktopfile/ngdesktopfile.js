@@ -8,7 +8,6 @@ angular.module('ngdesktopfile',['servoy'])
 	var watchers = new Map();
 	var shell = null;
 	var defer = null;
-    var syncDefer = null;
 	var net = null;
 	var formData = null;
 	
@@ -317,7 +316,7 @@ angular.module('ngdesktopfile',['servoy'])
              readFileSync: function(path) {
             },
             readFileSyncImpl: function(path, id) {
-                syncDefer = $q.defer();
+                const syncDefer = $q.defer();
                 this.readFileImpl(path, id, syncDefer);
                 return syncDefer.promise;
             },

@@ -218,6 +218,20 @@ export class NGDesktopFileService {
     }
 
     /**
+     * Reads and returns the content of the given file
+     *
+     * @param {String} path
+     */
+    readFileSync(path: string) {
+    }
+
+    readFileSyncImpl(path: string, id: string) {
+        const syncDefer = new Deferred<boolean>();
+        this.readFileImpl(path, id, syncDefer);
+        return syncDefer.promise;
+    }
+
+    /**
      * Reads the given bytes of a path, the callback is a function that will get as parameters the 'path' as a String and the 'file' as a JSUpload object
      * If the path is missing or contain only the file name then the native system dialog for opening files it is called.
      * Please use forward slashes (/) instead of backward slashes in the path/filename
@@ -227,11 +241,11 @@ export class NGDesktopFileService {
         // empty impl, is implemented in server side api calling the impl method below.
     }
 
-    readFileImpl(path: string, id: string) {
+    readFileImpl(path: string, id: string, syncDefer: Deferred<boolean>) {
         this.waitForDefered(() => {
             path = (path != null) ? path : '';
             if (path.lastIndexOf('/') >= 0) {
-                this.readUrlFromPath(path, id);
+                this.readUrlFromPath(path, id, syncDefer);
             } else {
                 const options = {
                     title: 'Open file',
@@ -241,7 +255,7 @@ export class NGDesktopFileService {
                 this.dialog.showOpenDialog(this.remote.getCurrentWindow(), options)
                     .then((result) => {
                         if (!result.canceled) {
-                            this.readUrlFromPath(result.filePaths[0].replace(/\\/g, '/'), id); //on Windows the path contains backslash
+                            this.readUrlFromPath(result.filePaths[0].replace(/\\/g, '/'), id, syncDefer); //on Windows the path contains backslash
                         }
                     }).catch((err) => {
                         this.log.info(err);
@@ -273,7 +287,7 @@ export class NGDesktopFileService {
 
     /**
     * Return the selected folder.
-    * 
+    *
     * @param path: initial path
     */
     selectDirectorySync( path: string ) {
@@ -302,7 +316,7 @@ export class NGDesktopFileService {
 
     /**
     * Return the selected file.
-    * 
+    *
     * @param path: initial path
     */
      selectFileSync( path: string ) {
@@ -862,12 +876,13 @@ export class NGDesktopFileService {
         });
     }
 
-    private readUrlFromPath(path: string, id: string) {
+    private readUrlFromPath(path: string, id: string, syncDefer:  Deferred<boolean>) {
         const form = new this.formData();
 
         form.append('path', path);
         form.append('id', id);
-        form.append('file', this.fs.createReadStream(path, { highWaterMark: 8192 * 1024 })); //internal buffer size
+        const reader = this.fs.createReadStream(path, { highWaterMark: 8192 * 1024 });
+        form.append('file', reader); //internal buffer size
         const fullUrl = this.getFullUrl(this.servoyService.generateServiceUploadUrl('ngdesktopfile', 'callback'));
 
         const request = this.net.request({
@@ -880,18 +895,15 @@ export class NGDesktopFileService {
         request.setHeader('content-type', headers['content-type']);
         form.pipe(request);
         request.on('error', (err) => {
-            if (this.defer) {
-                this.defer.resolve(false);
-                this.defer = null;
-            }
             if (err) throw err;
         });
-        request.on('response', () => {
-            if (this.defer) {
-                this.defer.resolve(true);
-                this.defer = null;
+        reader.on('end', () => {
+            if (syncDefer) {
+                setTimeout(() => {
+                    syncDefer.resolve(true);
+                }, 100);
             }
-        });
+        })
     }
 
     private resolveBooleanDefer(err, localDefer) {
