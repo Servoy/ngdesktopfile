@@ -8,6 +8,7 @@ angular.module('ngdesktopfile',['servoy'])
 	var watchers = new Map();
 	var shell = null;
 	var defer = null;
+    var syncDefer = null;
 	var net = null;
 	var formData = null;
 	
@@ -74,7 +75,7 @@ angular.module('ngdesktopfile',['servoy'])
 		function waitForDefered(func) {
 			if (defer != null) {
 				return defer.promise.then(function(){
-					return waitForDefered(func); //avoid multiple calls to the same defer to be executed cncurently
+					return waitForDefered(func); //avoid multiple calls to the same defer to be executed concurently
 				})
 			}
 			else func();
@@ -306,6 +307,20 @@ angular.module('ngdesktopfile',['servoy'])
 				    }
 				})
 			},
+             /**
+			 * Reads and returns the content of the given file
+			 * 
+			 * @param {String} path
+			 * 
+			 * @return {JSUpload}
+ 			 */
+             readFileSync: function(path) {
+            },
+            readFileSyncImpl: function(path, id) {
+                syncDefer = $q.defer();
+                this.readFileImpl(path, id, syncDefer);
+                return syncDefer.promise;
+            },
 			/**
 			 * Reads the given bytes of a path, the callback is a function that will get as parameters the 'path' as a String and the 'file' as a JSUpload object
 			 * If the path is missing or contain only the file name then the native system dialog for opening files it is called.
@@ -315,18 +330,19 @@ angular.module('ngdesktopfile',['servoy'])
 			readFile: function(callback, path) {
 				// empty impl, is implemented in server side api calling the impl method below.
 			},
-			readFileImpl: function(path, id) {
+			readFileImpl: function(path, id, syncDefer) {
 				waitForDefered(function() {
 					function readUrlFromPath(path, id) {
 						var form = new formData();
-
+                        var reader = fs.createReadStream(path, {highWaterMark : 8192 * 1024});//internal buffer size
 						form.append('path', path);
 						form.append('id', id);
-						form.append('file', fs.createReadStream(path, {highWaterMark : 8192 * 1024})); //internal buffer size
+						form.append('file', reader); 
 						var fullUrl = getFullUrl($utils.generateServiceUploadUrl("ngdesktopfile", "callback"));
+                        console.log(fullUrl);
 
 						const request = net.request({
-							method: 'POST',
+                            method: 'POST',
 							url: fullUrl,
 							session: remote.getCurrentWebContents().session,
 							useSessionCookies: true
@@ -335,18 +351,16 @@ angular.module('ngdesktopfile',['servoy'])
 						request.setHeader('content-type', headers['content-type']);
 						form.pipe(request);
 						request.on('error', (err) => {
-							if (defer) {
-								defer.resolve(false);
-								defer = null;
-							}
 							if (err) throw err;
 						});
-						request.on('response', (response) => {
-							if (defer) {
-								defer.resolve(true);
-								defer = null;
-							}
-						});
+                        reader.on('end', () => {
+                            if (syncDefer) {
+                                setTimeout(() => {
+                                    syncDefer.resolve(true);
+                                }, 100);
+                                
+                            }
+                        })
 					}
 					
 					path = (path != null) ? path : "";
@@ -493,11 +507,24 @@ angular.module('ngdesktopfile',['servoy'])
 			 * @return {String}
 			 */
 			showSaveDialogSync: function(options) {
-				try {
-					return dialog.showSaveDialogSync(remote.getCurrentWindow(), options);
-				} catch(e) {
-					console.log(e);
-				}
+                const saveDlgDefer = $q.defer();
+                waitForDefered(function() {
+                    if (!options) {
+						options = {};
+					}
+                    dialog.showSaveDialog(remote.getCurrentWindow(), options)
+					.then(function(result) {
+						if (!result.canceled) {
+							saveDlgDefer.resolve(result.filePath)
+						} else {
+                            saveDlgDefer.resolve(undefined); //on cancel return undefined: https://www.electronjs.org/docs/latest/api/dialog#dialogshowsavedialogsyncbrowserwindow-options
+                        }
+					}).catch(function(err) {
+						console.log(err);
+                        saveDlgDefer.resolve(undefined);
+					})
+                });
+                return saveDlgDefer.promise;
 			},
 			/**
 			 * Shows a file open dialog and calls the callback with the selected file path(s)
@@ -555,11 +582,24 @@ angular.module('ngdesktopfile',['servoy'])
 			 * @return <Array<String>}  
 			 */
 			showOpenDialogSync: function(options) {
-				try {
-					return dialog.showOpenDialogSync(remote.getCurrentWindow(), options);
-				} catch(e) {
-					console.log(e);
-				}
+                const openDlgDefer = $q.defer();
+                waitForDefered(function() {
+                    if (!options) {
+						options = {};
+					}
+                    dialog.showOpenDialog(remote.getCurrentWindow(), options)
+					.then(function(result) {
+						if (!result.canceled) {
+							openDlgDefer.resolve(result.filePaths)
+						} else {
+                            openDlgDefer.resolve(undefined);
+                        }
+					}).catch(function(err) {
+						console.log(err);
+                        openDlgDefer.resolve(undefined);
+					})
+                })
+                return openDlgDefer.promise;
 			},
 			/**
 			 * Delete the given file, returning a boolean indicating success or failure
@@ -603,7 +643,7 @@ angular.module('ngdesktopfile',['servoy'])
 			getFileStats: function(path) {
 				const statsDefer = $q.defer();
 				waitForDefered(function() {
-					if (!fs.existsSync(path)) {
+					if (!fs.existsSync(path)) {//exists is deprecated
 						statsDefer.resolve(null);
 					} else try {
 						fs.lstat(path, function(err, stats) {

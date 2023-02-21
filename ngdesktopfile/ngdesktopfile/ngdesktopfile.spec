@@ -64,6 +64,12 @@
 			],
 			"async-now":true
 		},
+		"readFileSync": {
+			"parameters" : [
+				{"name":"path", "type":"string", "optional": true}
+			],
+			"returns":"object"
+		},
 		"setReadOnly": {
 			"parameters" : [
 				{"name":"path", "type":"string"},
@@ -215,9 +221,17 @@
 		"readFileImpl": {
 			"parameters" : [
 				{"name":"path", "type":"string"},
-				{"name":"key", "type":"string"}
+				{"name":"key", "type":"string"},
+                {"name":"syncDefer", "type":"object", "optional":"true"}
 			],
 			"async-now":true
+		},
+        "readFileSyncImpl": {
+			"parameters" : [
+				{"name":"path", "type":"string"},
+				{"name":"key", "type":"string"}
+			],
+			"returns":"object"
 		},
 		"callback": {
 			"parameters" : [
