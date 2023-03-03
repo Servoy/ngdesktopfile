@@ -5,11 +5,9 @@ var storage = {
 
 $scope.api.writeFile = function(path,bytes, callback, passThru)
 {
-    console.log('serverside writeFile');
     var key=Math.random().toString(10);
 	storage[key] = callback;
     storage.passThru = passThru;
-    console.log('serverside writeFile before call');
 	$scope.api.writeFileImpl(path,servoyApi.getMediaUrl(bytes), key);
 }
 
