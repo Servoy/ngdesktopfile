@@ -79,13 +79,6 @@ angular.module('ngdesktopfile',['servoy'])
 			}
 			else func();
 		}
-		function invokeCallback(callback, message) {
-			if (callback) {
-				$window.executeInlineScript(callback.formname, callback.script, [message]);
-				return true;
-			}
-			return false;
-		}
 		return {
 			waitForDefered: function(func) {
 				waitForDefered(func);
@@ -205,13 +198,14 @@ angular.module('ngdesktopfile',['servoy'])
 			 * Writes the given bytes to the path, if the path has sub directories that are not there 
 			 * then those are made. If the path is missing or contain only the file name then the  
 			 * native system dialog for saving files it is called.
-			 * When finish, the optional callback it is called on finish with 'close' or 'error' string values
+			 * When finish, the optional callback it is called on finish with the written path or 'error' string values.
+             * An optional passThru object is also passed back to the callback function;
 			 * Please use forward slashes (/) instead of backward slashes in the path/filename
 			 */
-			writeFile: function(path, bytes, callback) {
+			writeFile: function(path, bytes, callback, passThru) {
 				// empty impl, is implemented in server side api calling the impl method below.
 			},
-			writeFileImpl: function(path, url, callback) {
+			writeFileImpl: function(path, url, key) {
 				waitForDefered(function() {
 					function saveUrlToPath(dir, realPath) {
 					    fs.mkdir(dir, { recursive: true }, function(err) {
@@ -241,7 +235,7 @@ angular.module('ngdesktopfile',['servoy'])
 									
 										if (writeSize === fileSize) {
 											writer.close();
-											invokeCallback(callback, 'close');
+                                            $services.callServerSideApi("ngdesktopfile","writeCallback",[path, key]);
 
 											defer.resolve(true);
 											defer = null;
@@ -253,7 +247,7 @@ angular.module('ngdesktopfile',['servoy'])
 									if ( writer != null) {
 										writer.close();
 									}
-									invokeCallback(callback, 'error');	
+									$services.callServerSideApi("ngdesktopfile","writeCallback",['error', key]);
 									if (defer != null) {
 										defer.resolve(false); 
 										defer = null;
@@ -337,8 +331,7 @@ angular.module('ngdesktopfile',['servoy'])
 						form.append('path', path);
 						form.append('id', id);
 						form.append('file', reader); 
-						var fullUrl = getFullUrl($utils.generateServiceUploadUrl("ngdesktopfile", "callback"));
-                        console.log(fullUrl);
+						var fullUrl = getFullUrl($utils.generateServiceUploadUrl("ngdesktopfile", "readCallback"));
 
 						const request = net.request({
                             method: 'POST',

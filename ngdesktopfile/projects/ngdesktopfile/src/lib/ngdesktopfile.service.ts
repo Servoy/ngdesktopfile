@@ -171,13 +171,15 @@ export class NGDesktopFileService {
      * Writes the given bytes to the path, if the path has sub directories that are not there
      * then those are made. If the path is missing or contain only the file name then the
      * native system dialog for saving files it is called.
+     * When finish, the optional callback it is called on finish with the written path or 'error' string values.
+     * An optional passThru object is also passed back to the callback function;
      * Please use forward slashes (/) instead of backward slashes in the path/filename
      */
-    writeFile(_path: string, _bytes: any, callback: { formname: string; script: string }) {
+    writeFile(_path: string, _bytes: any, callback: { formname: string; script: string }, passthru: any) {
         // empty impl, is implemented in server side api calling the impl method below.
     }
 
-    writeFileImpl(path: string, url: string, callback: { formname: string; script: string }) {
+    writeFileImpl(path: string, url: string, key: string) {
         this.waitForDefered(() => {
             this.defer = new Deferred();
             path = (path != null) ? path : '';
@@ -185,7 +187,7 @@ export class NGDesktopFileService {
             const index = path.lastIndexOf('/');
             if (index >= 0) {
                 dir = path.substring(0, index);
-                this.saveUrlToPath(dir, path, url, callback);
+                this.saveUrlToPath(dir, path, url, key);
             } else {
                 const options = {
                     title: 'Save file',
@@ -199,7 +201,7 @@ export class NGDesktopFileService {
                             const indexOf = realPath.lastIndexOf('/');
                             if (indexOf > 0) {
                                 dir = realPath.substring(0, indexOf);
-                                this.saveUrlToPath(dir, realPath, url, callback);
+                                this.saveUrlToPath(dir, realPath, url, key);
                             } else {
                                 this.defer.resolve(false);
                                 this.defer = null;
@@ -821,7 +823,7 @@ export class NGDesktopFileService {
         return base + url;
     }
 
-    private saveUrlToPath(dir: string, realPath: string, url: string, callback: { formname: string; script: string }) {
+    private saveUrlToPath(dir: string, realPath: string, url: string, key: string) {
         this.fs.mkdir(dir, { recursive: true }, (err) => {
             if (err) {
                 this.defer.resolve(false);
@@ -847,7 +849,7 @@ export class NGDesktopFileService {
 
 						if (writeSize === fileSize) {
                             writer.close();
-							this.invokeCallback(callback, 'close');
+                            this.servoyService.callServiceServerSideApi('ngdesktopfile','writeCallback',[realPath, key]);
 							this.defer.resolve(true);
 							this.defer = null;
 						}
@@ -859,7 +861,7 @@ export class NGDesktopFileService {
                         if ( writer != null ) {
                             writer.close();
                         }
-                        this.invokeCallback(callback, 'error');
+                        this.servoyService.callServiceServerSideApi('ngdesktop','writeCallback',['error', key]);
                         if (this.defer != null) {
                             this.defer.resolve(false); //global defer
                             this.defer = null;
@@ -883,7 +885,7 @@ export class NGDesktopFileService {
         form.append('id', id);
         const reader = this.fs.createReadStream(path, { highWaterMark: 8192 * 1024 });
         form.append('file', reader); //internal buffer size
-        const fullUrl = this.getFullUrl(this.servoyService.generateServiceUploadUrl('ngdesktopfile', 'callback'));
+        const fullUrl = this.getFullUrl(this.servoyService.generateServiceUploadUrl('ngdesktopfile', 'readCallback'));
 
         const request = this.net.request({
             method: 'POST',
@@ -903,7 +905,7 @@ export class NGDesktopFileService {
                     syncDefer.resolve(true);
                 }, 100);
             }
-        })
+        });
     }
 
     private resolveBooleanDefer(err, localDefer) {
@@ -952,14 +954,5 @@ export class NGDesktopFileService {
                 return false;
         }
     }
-
-    private invokeCallback(callback: { formname: string; script: string }, message: string) {
-        if (callback) {
-            this.servoyService.executeInlineScript(callback.formname, callback.script, [message]);
-            return true;
-        }
-        return false;
-    }
-
 }
 

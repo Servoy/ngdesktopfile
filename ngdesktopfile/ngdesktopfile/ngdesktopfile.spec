@@ -53,7 +53,8 @@
 			"parameters" : [
 				{"name":"path", "type":"string"},
 				{"name":"bytes", "type":"byte[]"},
-				{"name":"callback", "type":"function", "optional": true}
+				{"name":"callback", "type":"function", "optional": true},
+				{"name":"passThru", "type":"object", "optional": true}
 			],
 			"async-now":true
 		},
@@ -214,14 +215,14 @@
 			"parameters" : [
 				{"name":"path", "type":"string"},
 				{"name":"url", "type":"string"},
-				{"name":"callback", "type":"function", "optional": true}
+				{"name":"id", "type":"string"}
 			],
 			"async-now":true
 		},
 		"readFileImpl": {
 			"parameters" : [
 				{"name":"path", "type":"string"},
-				{"name":"key", "type":"string"},
+				{"name":"id", "type":"string"},
                 {"name":"defer", "type":"object", "optional": true}
 			],
 			"async-now":true
@@ -229,13 +230,18 @@
         "readFileSyncImpl": {
 			"parameters" : [
 				{"name":"path", "type":"string"},
-				{"name":"key", "type":"string"}
+				{"name":"id", "type":"string"}
 			],
 			"returns":"object"
 		},
-		"callback": {
+		"readCallback": {
 			"parameters" : [
-				{"name":"file", "type":"object"}
+				{"name":"data", "type":"object"}
+			]
+		},
+        "writeCallback": {
+			"parameters" : [
+				{"name":"message", "type":"string"}
 			]
 		}
  	},

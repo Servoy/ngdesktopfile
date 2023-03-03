@@ -1,39 +1,54 @@
-var pathToCallback = {};
-var syncFile = null;
+var storage = {
+    syncFile: null,
+    passThru: null
+};
 
-$scope.api.writeFile = function(path,bytes, callback)
+$scope.api.writeFile = function(path,bytes, callback, passThru)
 {
-	var key=Math.random().toString(10);
-	pathToCallback[key] = callback;
-	$scope.api.writeFileImpl(path,servoyApi.getMediaUrl(bytes), callback);
+    console.log('serverside writeFile');
+    var key=Math.random().toString(10);
+	storage[key] = callback;
+    storage.passThru = passThru;
+    console.log('serverside writeFile before call');
+	$scope.api.writeFileImpl(path,servoyApi.getMediaUrl(bytes), key);
 }
 
 $scope.api.readFileSync = function(path)
 {
 	var key=Math.random().toString(10);
-	pathToCallback[key] = $scope.api.syncCallback;
-    syncFile = null;
-	$scope.api.readFileSyncImpl(path, key); // this is a sync function
-    return syncFile;
+	storage[key] = $scope.api.syncCallback;
+	$scope.api.readFileSyncImpl(path, key); // this will resume after readCallback execution return
+    var tmpFile = storage.syncFile;
+    storage.syncFile = null;
+    return tmpFile;
 }
 
 $scope.api.readFile = function(callback, path)
 {
 	var key=Math.random().toString(10);
-	pathToCallback[key] = callback;
+	storage[key] = callback;
 	$scope.api.readFileImpl(path, key,  null);
 }
 
-$scope.api.callback = function(file) {
-	var path = file.getFieldValue("path");
-	var key = file.getFieldValue("id");
-	var callback = pathToCallback[key];
+$scope.api.readCallback = function(data) {
+	var path = data.getFieldValue("path");
+	var key = data.getFieldValue("id");
+	var callback = storage[key];
     if (callback) { 
-        callback(path, file);
-        pathToCallback[key] = null;
+        callback(path, data);
+        storage[key] = null;
     }
 }
 
-$scope.api.syncCallback = function(path, file) {
-    syncFile = file;
+$scope.api.syncCallback = function(path, data) {
+	storage.syncFile = data;
+}
+
+$scope.writeCallback = function(message, key) {
+	var callback = storage[key];
+    if (callback) { 
+        callback(message, storage.passThru);
+        storage.passThru = null;
+        storage[key] = null;
+    }
 }
