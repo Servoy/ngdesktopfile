@@ -33,12 +33,11 @@ $scope.api.readFile = function(callback, path)
 }
 
 $scope.api.readCallback = function(data) {
-	var path = data.getFieldValue("path");
 	var key = data.getFieldValue("id");
     if (storage[key].callback && storage[key].isSync) { 
         storage[key].callback(key, data);
     } else if (storage[key].callback) {
-        storage[key].callback(path, data);
+        storage[key].callback(data.getFieldValue("path"), data);
         storage[key] = null;
     }
 }
