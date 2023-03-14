@@ -58,6 +58,12 @@
 			],
 			"async-now":true
 		},
+		"writeTempFileSync": {
+			"parameters" : [
+				{"name":"bytes", "type":"byte[]"}
+			],
+			"returns":"string"
+		},
 		"readFile": {
 			"parameters" : [
 				{"name":"callback", "type":"function"},
@@ -208,16 +214,28 @@
 		 		{"name":"encoding", "type":"string", "optional": true}
 		 	],
 		 	"returns": "string"
-		 }
+		 },
+		 "cleanTempFiles": {
+			"returns":"boolean"
+		}
 	},
  	"internalApi": {
  		"writeFileImpl": {
 			"parameters" : [
 				{"name":"path", "type":"string"},
 				{"name":"url", "type":"string"},
-				{"name":"id", "type":"string"}
+				{"name":"key", "type":"string"}
+				{"name":"callback", "type":"function", "optional": true},
+				{"name":"writeFileDefer", "type":"boolean", "optional": true}
 			],
 			"async-now":true
+		},
+		"writeFileSyncImpl": {
+			"parameters" : [
+				{"name":"bytes", "type":"object"},
+				{"name":"path", "type":"string"}
+			],
+			"returns": "string"
 		},
 		"readFileImpl": {
 			"parameters" : [
@@ -243,6 +261,9 @@
 			"parameters" : [
 				{"name":"message", "type":"string"}
 			]
+		}
+		"cleanTempFilesImpl": {
+			"returns":"boolean"
 		}
  	},
  	"types": {

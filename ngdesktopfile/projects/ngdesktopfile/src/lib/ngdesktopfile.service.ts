@@ -171,15 +171,15 @@ export class NGDesktopFileService {
      * Writes the given bytes to the path, if the path has sub directories that are not there
      * then those are made. If the path is missing or contain only the file name then the
      * native system dialog for saving files it is called.
-     * When finish, the optional callback it is called on finish with the written path or 'error' string values.
+     * When finished, the optional callback it is called on finish with the written path or 'error' string values.
      * An optional passThru object is also passed back to the callback function;
      * Please use forward slashes (/) instead of backward slashes in the path/filename
      */
-    writeFile(_path: string, _bytes: any, callback: { formname: string; script: string }, passthru: any) {
+    writeFile(_path: string, _bytes: any, key: string, passthru: any, writeFileDefer: boolean) {
         // empty impl, is implemented in server side api calling the impl method below.
     }
 
-    writeFileImpl(path: string, url: string, key: string) {
+    writeFileImpl(path: string, url: string, key: string, passThru: any, writeFileDefer: boolean) {
         this.waitForDefered(() => {
             this.defer = new Deferred();
             path = (path != null) ? path : '';
@@ -218,6 +218,61 @@ export class NGDesktopFileService {
             }
         });
     }
+    
+    
+    /**
+	 * A synchronous way to write bytes to a file. If the path argument is omitted, it will write the
+	 * file, with a pseudo-random name, in a directory for temporary files, 
+	 * which will be emptied when the ngdesktop window is closed.
+	 * The function returns the path of the created file as a string.
+	 * 
+	 * @param url - the url pointing to the bytes
+	 * @param path - the path pointing to where to write the file
+	 *
+	 * @return
+ 	 */
+    writeFileSync(url: string, path: string) {
+	}
+	
+	writeFileSyncImpl(url: string, key: string, path: string) {
+		const defer = new Deferred();
+		if (path == null) {
+			function chr4() {
+				return (new Date().getTime() * Math.random()).toString(16).slice(-4).toUpperCase();
+			}
+			const uuid = chr4() + chr4() + '-' + chr4() + '-' + chr4() + '-' + chr4() + '-' + chr4() + chr4() + chr4();
+			path = this.os.tmpdir().replace(/\\/g, "/") + "/" + 'svyTempFiles' + "/" + uuid;
+		}
+		this.writeFileImpl(path, url, key, null, true);
+		defer.resolve(path);
+		return defer.promise;
+	}
+	
+	cleanTempFiles() {
+		
+	}
+	
+	cleanTempFilesImpl() {
+		const defer = new Deferred<boolean>();
+		const tempDirPath = this.os.tmpdir().replace(/\\/g, "/") + "/" + 'svyTempFiles';
+		fs.readdir(tempDirPath, (err, files) => {
+    		if (err) {
+				defer.resolve(false);
+			}
+			else {
+    			for (const file of files) {
+      				fs.unlink(`${tempDirPath}/${file}`, err => {
+        				if (err) {
+							defer.resolve(false);
+							return defer.promise;
+						}
+      				});
+    			}
+    			defer.resolve(true);
+    		}
+  		});
+  		return defer.promise;
+	}
 
     /**
      * Reads and returns the content of the given file

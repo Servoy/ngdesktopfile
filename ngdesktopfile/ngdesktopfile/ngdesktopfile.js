@@ -194,6 +194,31 @@ angular.module('ngdesktopfile',['servoy'])
 			unwatchFile: function(path) {
 				fs.unwatchFile(path);
 			},
+
+			/**
+			 * Write an array of bytes to a temporary file. The file will be written in a directory within the TEMP directory of the target os. 
+			 * Files will be cleaned when the window is closed or cleanTempFiles() is called.
+			 * 
+			 * @param {Object} bytes
+			 *
+			 * @return {String}
+ 			 */
+			writeTempFileSync(bytes) {
+				// empty impl, is implemented in server side api calling the impl method below.
+			},
+
+            writeFileSyncImpl: function(url, key, path) {
+                const syncDefer = $q.defer();
+                if (path == null) {
+					function chr4() {
+					   return (new Date().getTime() * Math.random()).toString(16).slice(-4).toUpperCase();
+					}
+					const uuid = chr4() + chr4() + '-' + chr4() + '-' + chr4() + '-' + chr4() + '-' + chr4() + chr4() + chr4();
+					path = require('os').tmpdir().replace(/\\/g, "/") + "/" + 'svyTempFiles' + "/" + uuid;
+				}
+            	this.writeFileImpl(path, url, key, syncDefer);
+                return syncDefer.promise;
+            },
 			/**
 			 * Writes the given bytes to the path, if the path has sub directories that are not there 
 			 * then those are made. If the path is missing or contain only the file name then the  
@@ -205,7 +230,7 @@ angular.module('ngdesktopfile',['servoy'])
 			writeFile: function(path, bytes, callback, passThru) {
 				// empty impl, is implemented in server side api calling the impl method below.
 			},
-			writeFileImpl: function(path, url, key) {
+			writeFileImpl: function(path, url, key, syncDefer) {
 				waitForDefered(function() {
 					function saveUrlToPath(dir, realPath) {
 					    fs.mkdir(dir, { recursive: true }, function(err) {
@@ -235,7 +260,13 @@ angular.module('ngdesktopfile',['servoy'])
 									
 										if (writeSize === fileSize) {
 											writer.close();
+
                                             $services.callServerSideApi("ngdesktopfile","writeCallback",[path, key]);
+
+                                            if (syncDefer) {//give a small time gap to return from server else the returned path on the server side wiil be null
+                                                setTimeout(() => {
+                                                    syncDefer.resolve(true);
+                                            }, 100);
 
 											defer.resolve(true);
 											defer = null;
@@ -248,6 +279,12 @@ angular.module('ngdesktopfile',['servoy'])
 										writer.close();
 									}
 									$services.callServerSideApi("ngdesktopfile","writeCallback",['error', key]);
+                                    
+                                    if (syncDefer) {//give a small time gap to return from server else the returned path on the server side wiil be null
+                                        setTimeout(() => {
+                                            syncDefer.resolve(true);
+                                    }, 100);
+
 									if (defer != null) {
 										defer.resolve(false); 
 										defer = null;
@@ -926,7 +963,39 @@ angular.module('ngdesktopfile',['servoy'])
 				})
 				return deferRO.promise;
 			},
+
+			/**
+			 * Empties the directory where temporary files are stored (e.g. when using writeTempFileSync(bytes)).
+			 * Returns true if successful.
+			 */
+			cleanTempFiles: function() {
+				
+			},
+			cleanTempFilesImpl: function() {
+				const defer = $q.defer();
+				const tempDirPath = require('os').tmpdir().replace(/\\/g, "/") + "/" + 'svyTempFiles';
+				fs.readdir(tempDirPath, (err, files) => {
+    				if (err) {
+						defer.resolve(false);
+						return defer.promise;
+					}
+					else {
+    					for (const file of files) {
+      						fs.unlink(`${tempDirPath}/${file}`, err => {
+        						if (err) {
+									defer.resolve(false);
+									return defer.promise;
+								}
+      						});
+    					}
+    					defer.resolve(true);
+    				}
+  				});
+  				return defer.promise;
+			},
 		}
+
+		
 	}
 	else {
 		return {
