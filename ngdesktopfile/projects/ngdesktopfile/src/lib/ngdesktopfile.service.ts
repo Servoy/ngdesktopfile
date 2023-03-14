@@ -221,17 +221,16 @@ export class NGDesktopFileService {
     
     
     /**
-	 * A synchronous way to write bytes to a file. If the path argument is omitted, it will write the
-	 * file, with a pseudo-random name, in a directory for temporary files, 
+	 * A synchronous way to write bytes to a temporary file. It will write the
+	 * file, with a pseudo-random name, in a directory for temporary files 
 	 * which will be emptied when the ngdesktop window is closed.
 	 * The function returns the path of the created file as a string.
 	 * 
-	 * @param url - the url pointing to the bytes
-	 * @param path - the path pointing to where to write the file
+	 * @param bytes - the bytes to write to a file
 	 *
 	 * @return
  	 */
-    writeFileSync(url: string, path: string) {
+    writeTempFileSync(bytes: string) {
 	}
 	
 	writeFileSyncImpl(url: string, key: string, path: string) {
@@ -255,21 +254,22 @@ export class NGDesktopFileService {
 	cleanTempFilesImpl() {
 		const defer = new Deferred<boolean>();
 		const tempDirPath = this.os.tmpdir().replace(/\\/g, "/") + "/" + 'svyTempFiles';
-		fs.readdir(tempDirPath, (err, files) => {
+		this.fs.readdir(tempDirPath, (err, files) => {
     		if (err) {
 				defer.resolve(false);
 			}
 			else {
     			for (const file of files) {
-      				fs.unlink(`${tempDirPath}/${file}`, err => {
-        				if (err) {
+      				this.fs.unlink(`${tempDirPath}/${file}`, error => {
+        				if (error) {
 							defer.resolve(false);
 							return defer.promise;
 						}
       				});
     			}
     			defer.resolve(true);
-    		}
+    			return defer.promise;
+    		};
   		});
   		return defer.promise;
 	}

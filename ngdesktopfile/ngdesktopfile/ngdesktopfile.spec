@@ -224,16 +224,17 @@
 			"parameters" : [
 				{"name":"path", "type":"string"},
 				{"name":"url", "type":"string"},
-				{"name":"key", "type":"string"}
-				{"name":"callback", "type":"function", "optional": true},
+				{"name":"key", "type":"string"},
+				{"name":"passThru", "type":"any", "optional": true},
 				{"name":"writeFileDefer", "type":"boolean", "optional": true}
 			],
 			"async-now":true
 		},
 		"writeFileSyncImpl": {
 			"parameters" : [
-				{"name":"bytes", "type":"object"},
-				{"name":"path", "type":"string"}
+				{"name":"url", "type":"string"},
+				{"name":"key", "type":"string"},
+				{"name":"path", "type":"string", "optional": true}
 			],
 			"returns": "string"
 		},

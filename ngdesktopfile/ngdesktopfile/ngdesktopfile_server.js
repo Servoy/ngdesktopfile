@@ -10,14 +10,14 @@ $scope.api.writeFile = function(path,bytes, callback, passThru)
 	$scope.api.writeFileImpl(path,servoyApi.getMediaUrl(bytes), key);
 }
 
-$scope.api.writeTempFileSync = function(bytes, path) 
+$scope.api.writeTempFileSync = function(bytes) 
 {
     var key=Math.random().toString(10);
     storage[key] = {
         callback: $scope.api.syncCallback, //this will be my callback which is setting my temporary path to storage object
         isSync: true //this will tell to the writeCallback below where this call was originated
     }
-    $scope.api.writeFileSyncImpl(servoyApi.getMediaUrl(bytes), key, path); // execution flow will stop here and resume after writeCallback execution return
+    $scope.api.writeFileSyncImpl(servoyApi.getMediaUrl(bytes), key); // execution flow will stop here and resume after writeCallback execution return
     var tmpData = storage[key].syncData; // this syncData is your temporary path created in the client side
     storage[key] = null; //reset the storage
     return tmpData; //return temporary path
