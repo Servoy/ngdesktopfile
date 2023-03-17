@@ -196,8 +196,10 @@ angular.module('ngdesktopfile',['servoy'])
 			},
 
 			/**
-			 * Write an array of bytes to a temporary file. The file will be written in a directory within the TEMP directory of the target os. 
-			 * Files will be cleaned when the window is closed or cleanTempFiles() is called.
+			 * A synchronous way to write bytes to a temporary file 
+	 		 * with a unique pseudo-random name, in a directory for temporary files. 
+	 		 * This directory will be cleared when the ngDesktop window is closed or when clearTempFiles() is called. 
+	 		 * The function returns the path of the created file as a string.
 			 * 
 			 * @param {Object} bytes
 			 *
@@ -207,7 +209,7 @@ angular.module('ngdesktopfile',['servoy'])
 				// empty impl, is implemented in server side api calling the impl method below.
 			},
 
-            writeFileSyncImpl: function(url, key, path) {
+            writeFileSyncImpl: function(url, path) {
                 const syncDefer = $q.defer();
                 if (path == null) {
 					function chr4() {
@@ -216,9 +218,10 @@ angular.module('ngdesktopfile',['servoy'])
 					const uuid = chr4() + chr4() + '-' + chr4() + '-' + chr4() + '-' + chr4() + '-' + chr4() + chr4() + chr4();
 					path = require('os').tmpdir().replace(/\\/g, "/") + "/" + 'svyTempFiles' + "/" + uuid;
 				}
-            	this.writeFileImpl(path, url, key, syncDefer);
+            	this.writeFileImpl(path, url, key, null, syncDefer);
                 return syncDefer.promise;
             },
+            
 			/**
 			 * Writes the given bytes to the path, if the path has sub directories that are not there 
 			 * then those are made. If the path is missing or contain only the file name then the  
@@ -230,7 +233,12 @@ angular.module('ngdesktopfile',['servoy'])
 			writeFile: function(path, bytes, callback, passThru) {
 				// empty impl, is implemented in server side api calling the impl method below.
 			},
-			writeFileImpl: function(path, url, key, syncDefer) {
+			
+			/**
+			 * Write a file to a given path. If called by a synchronised function, 
+	 		 * pass a Deferred object.
+			 */
+			writeFileImpl: function(path, url, key, passThru, syncDefer) {
 				waitForDefered(function() {
 					function saveUrlToPath(dir, realPath) {
 					    fs.mkdir(dir, { recursive: true }, function(err) {
@@ -261,15 +269,18 @@ angular.module('ngdesktopfile',['servoy'])
 										if (writeSize === fileSize) {
 											writer.close();
 
-                                            $services.callServerSideApi("ngdesktopfile","writeCallback",[path, key]);
+                                            
 
                                             if (syncDefer) {//give a small time gap to return from server else the returned path on the server side wiil be null
-                                                setTimeout(() => {
-                                                    syncDefer.resolve(true);
-                                            }, 100);
-
+                                                syncDefer.resolve(path);
+                                            } else {
+												$services.callServerSideApi("ngdesktopfile","writeCallback",[path, key]);
+											}
+                                            
 											defer.resolve(true);
 											defer = null;
+											
+											
 										}
 									});
 								});
@@ -278,12 +289,14 @@ angular.module('ngdesktopfile',['servoy'])
 									if ( writer != null) {
 										writer.close();
 									}
-									$services.callServerSideApi("ngdesktopfile","writeCallback",['error', key]);
+									
                                     
-                                    if (syncDefer) {//give a small time gap to return from server else the returned path on the server side wiil be null
-                                        setTimeout(() => {
-                                            syncDefer.resolve(true);
-                                    }, 100);
+                                    if (syncDefer) {
+                                        syncDefer.resolve('error');
+                                    } else {
+										$services.callServerSideApi("ngdesktopfile","writeCallback",['error', key]);
+									}
+                                    
 
 									if (defer != null) {
 										defer.resolve(false); 
@@ -965,13 +978,11 @@ angular.module('ngdesktopfile',['servoy'])
 			},
 
 			/**
-			 * Empties the directory where temporary files are stored (e.g. when using writeTempFileSync(bytes)).
+			 * Clears the directory where temporary files are stored (e.g. when using writeTempFileSync(bytes)).
 			 * Returns true if successful.
+			 * @return {boolean}
 			 */
-			cleanTempFiles: function() {
-				
-			},
-			cleanTempFilesImpl: function() {
+			clearTempFiles: function() {
 				const defer = $q.defer();
 				const tempDirPath = require('os').tmpdir().replace(/\\/g, "/") + "/" + 'svyTempFiles';
 				fs.readdir(tempDirPath, (err, files) => {
@@ -1008,6 +1019,8 @@ angular.module('ngdesktopfile',['servoy'])
 			unwatchDir: function(path) {console.log("not in electron");},
 			getFileStats: function(path) {console.log("not in electron");},
 			writeFileImpl: function(path, bytes){console.log("not in electron");},
+			writeTempFileSync: function(bytes){console.log("not in electron");},
+			writeFileSyncImpl: function(url, path){console.log("not in electron");},
 			readFileImpl: function(path, id, bytes){console.log("not in electron");},
 			selectDirectory: function(callback){console.log("not in electron");},
 			selectDirSync: function(callback){console.log("not in electron");},
