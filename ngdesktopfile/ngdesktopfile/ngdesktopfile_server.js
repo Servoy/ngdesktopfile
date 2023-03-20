@@ -12,15 +12,7 @@ $scope.api.writeFile = function(path,bytes, callback, passThru)
 
 $scope.api.writeTempFileSync = function(bytes) 
 {
-    var key=Math.random().toString(10);
-    storage[key] = {
-        callback: $scope.api.syncCallback, //this will be my callback which is setting my temporary path to storage object
-        isSync: true //this will tell to the writeCallback below where this call was originated
-    }
-    $scope.api.writeFileSyncImpl(servoyApi.getMediaUrl(bytes), key); // execution flow will stop here and resume after writeCallback execution return
-    var tmpData = storage[key].syncData; // this syncData is your temporary path created in the client side
-    storage[key] = null; //reset the storage
-    return tmpData; //return temporary path
+    return $scope.api.writeFileSyncImpl(servoyApi.getMediaUrl(bytes));
 }
 
 $scope.api.readFileSync = function(path)
@@ -55,21 +47,17 @@ $scope.api.readCallback = function(data) {
     }
 }
 
-$scope.api.syncCallback = function(key, data) { //this is used for both readFileSync and writeTempFileSync
+$scope.api.syncCallback = function(key, data) { 
 	storage[key].syncData = data;
 }
 
 $scope.writeCallback = function(message, key) {
 	var record = storage[key];
     if (storage[key].callback && storage[key].isSync) { //if this call is originated from writeTempFileSync
-        storage[key].callback(key, data); //this callback is set to $scope.api.syncCallback
+        storage[key].callback(key, message); //this callback is set to $scope.api.syncCallback
     } else if (record.callback) { //else we keep the original processing
-        record.callback(message, record.passThru);
+        storage[key].callback(message, record.passThru);
         storage[key] = null;
     }
 }
 
-$scope.api.cleanTempFiles()
-{
-	return $scope.api.cleanTempFiles();
-}

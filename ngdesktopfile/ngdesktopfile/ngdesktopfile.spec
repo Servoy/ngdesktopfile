@@ -215,7 +215,7 @@
 		 	],
 		 	"returns": "string"
 		 },
-		 "cleanTempFiles": {
+		 "clearTempFiles": {
 			"returns":"boolean"
 		}
 	},
@@ -225,14 +225,14 @@
 				{"name":"path", "type":"string"},
 				{"name":"url", "type":"string"},
 				{"name":"key", "type":"string"},
-				{"name":"passThru", "type":"any", "optional": true},
-				{"name":"writeFileDefer", "type":"boolean", "optional": true}
+				{"name":"passThru", "type":"function", "optional": true},
+				{"name":"syncDefer", "type":"boolean", "optional": true}
 			],
 			"async-now":true
 		},
 		"writeFileSyncImpl": {
 			"parameters" : [
-				{"name":"url", "type":"string"},
+				{"name":"bytes", "type":"object"},
 				{"name":"key", "type":"string"},
 				{"name":"path", "type":"string", "optional": true}
 			],
@@ -262,9 +262,6 @@
 			"parameters" : [
 				{"name":"message", "type":"string"}
 			]
-		}
-		"cleanTempFilesImpl": {
-			"returns":"boolean"
 		}
  	},
  	"types": {
