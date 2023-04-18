@@ -269,9 +269,7 @@ angular.module('ngdesktopfile',['servoy'])
 										if (writeSize === fileSize) {
 											writer.close();
 
-                                            
-
-                                            if (syncDefer) {//give a small time gap to return from server else the returned path on the server side wiil be null
+                                            if (syncDefer) {
                                                 syncDefer.resolve(path);
                                             } else {
 												$services.callServerSideApi("ngdesktopfile","writeCallback",[path, key]);
@@ -289,15 +287,13 @@ angular.module('ngdesktopfile',['servoy'])
 									if ( writer != null) {
 										writer.close();
 									}
-									
-                                    
+									                                    
                                     if (syncDefer) {
                                         syncDefer.resolve('error');
                                     } else {
 										$services.callServerSideApi("ngdesktopfile","writeCallback",['error', key]);
 									}
                                     
-
 									if (defer != null) {
 										defer.resolve(false); 
 										defer = null;
