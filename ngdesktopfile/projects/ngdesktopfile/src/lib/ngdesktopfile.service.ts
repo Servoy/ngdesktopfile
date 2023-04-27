@@ -256,27 +256,34 @@ export class NGDesktopFileService {
 	 * Returns true if successful.
 	 * @return {boolean}
 	 */
-	clearTempFiles() {
-		const defer = new Deferred<boolean>();
-		const tempDirPath = this.os.tmpdir().replace(/\\/g, "/") + "/" + 'svyTempFiles';
-		this.fs.readdir(tempDirPath, (err, files) => {
-			if (err) {
-				defer.resolve(false);
-			}
-			else {
-				for (const file of files) {
-					this.fs.unlink(`${tempDirPath}/${file}`, err => {
-						if (err) {
-							defer.resolve(false);
-							return defer.promise;
-						}
-					});
-				}
-				defer.resolve(true);
-			}
-		});
-		return defer.promise;
-	}
+    clearTempFiles() {
+        const defer = new Deferred<boolean>();
+        const tempDirPath = this.os.tmpdir().replace(/\\/g, "/") + "/" + 'svyTempFiles';
+        this.fs.readdir(tempDirPath, (err, files) => {
+          if (err) {
+            defer.resolve(false);
+          } else {
+            let filesProcessed = 0;
+            let errorOccurred = false;
+            if (files.length === 0) {
+              defer.resolve(true);
+            } else {
+              for (const file of files) {
+                this.fs.unlink(`${tempDirPath}/${file}`, err => {
+                  filesProcessed++;
+                  if (err && !errorOccurred) {
+                    errorOccurred = true;
+                    defer.resolve(false);
+                  } else if (filesProcessed === files.length && !errorOccurred) {
+                    defer.resolve(true);
+                  }
+                });
+              }
+            }
+          }
+        });
+        return defer.promise;
+      }
 
 	/**
 	 * Reads and returns the content of the given file
