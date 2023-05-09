@@ -1,6 +1,6 @@
 {
   "name": "ngdesktopfile",
-  "version": "2023.03.1",
+  "version": "2023.3.2",
   "scripts": {
     "ng": "ng",
     "start": "ng serve",

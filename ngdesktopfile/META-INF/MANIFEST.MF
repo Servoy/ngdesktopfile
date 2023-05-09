@@ -1,7 +1,7 @@
 Manifest-Version: 1.0
 Bundle-SymbolicName: ngdesktopfile
 Bundle-Name: NGDesktop File
-Bundle-Version: 2023.03.1
+Bundle-Version: 2023.3.2
 Package-Type: Web-Service
 
 Name: ngdesktopfile/ngdesktopfile.spec
