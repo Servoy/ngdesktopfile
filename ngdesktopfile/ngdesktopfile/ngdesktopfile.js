@@ -81,7 +81,7 @@ angular.module('ngdesktopfile',['servoy'])
 		}
 		return {
 			waitForDefered: function(func) {
-				waitForDefered(func);
+				return waitForDefered(func);
 			},
 			/**
 			 * Returns the home dir of the user like c:/users/[username] under windows.
