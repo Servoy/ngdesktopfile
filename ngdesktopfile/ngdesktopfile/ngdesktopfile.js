@@ -77,7 +77,7 @@ angular.module('ngdesktopfile',['servoy'])
 					return waitForDefered(func); //avoid multiple calls to the same defer to be executed concurently
 				})
 			}
-			else func();
+			else return func();
 		}
 		return {
 			waitForDefered: function(func) {
@@ -702,20 +702,24 @@ angular.module('ngdesktopfile',['servoy'])
 				});
 				return statsDefer.promise;
 			},
+
 			/**
-			 * Opens a file specified at the given path on the client. 
-             * This path must exist on the client's machine, you can't open a file with a path pointing to a file on the server, use writeFile() first to write it to the clients machine.
-			 * It returns a string value. 
-			 * If the value is empty, then the file has been successfully opened, otherwise the string contains the error message.
+			 * Opens a file specified at the given path on the client. It will open it in the desktop's default manner.
+             * This path must exist on the client's machine, you can't open a file with a path pointing to a file on the server; use
+             * writeFile() first to write it to the clients machine.
+             * 
+             * If it fails, it returns a string containing the error message corresponding to the failure.
+             * If the file has been successfully opened, it will return an empty string.
 			 * 
-			 * @param {String} path - file's full path
-			 * @return {String}
+			 * @param {String} path - file's full path on the client.
+			 * @return {String} an empty string if the file was successfully opened or a string containing the error message corresponding to the failure otherwise.
  			 */
-			 openFile: function(path) {
+			openFile: function(path) {
 				return waitForDefered(function() {
 					return shell.openPath(path);
 				});
 			},
+
 			/**
 			 * Test whether or not the given path exists by checking with the file system.
 			 * It returns true if the path exists, false otherwise.
