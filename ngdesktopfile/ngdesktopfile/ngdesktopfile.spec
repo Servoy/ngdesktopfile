@@ -3,6 +3,7 @@
 	"displayName": "NGDesktop File",
 	"version": 1,
  	"definition": "ngdesktopfile/ngdesktopfile/ngdesktopfile.js",
+ 	"doc": "ngdesktopfile/ngdesktopfile/ngdesktopfile_doc.js",
 	"serverscript":"ngdesktopfile/ngdesktopfile/ngdesktopfile_server.js",
 	"ng2Config": {
 	   "packageName": "@servoy/ngdesktopfile",
