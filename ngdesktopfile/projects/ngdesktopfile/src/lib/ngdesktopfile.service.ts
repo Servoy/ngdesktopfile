@@ -882,6 +882,32 @@ export class NGDesktopFileService {
 		return deferRO.promise;
 	}
 
+    /**
+     * Retrieves the path to a special directory or file associated with the given name.
+     *
+     * @param {('home' | 'tmp' | 'documents' | 'downloads')} name - The name of the directory or file.
+     * @returns {Promise<string>} A promise that resolves with the path to a special directory or file associated with the name or an empty string if the name is not one of the allowed values.
+     */
+    getPath(name: 'home' | 'temp' | 'documents' | 'downloads') {
+        const getPathDefer = new Deferred();
+    
+        // Check if the name is one of the allowed values
+        this.waitForDefered(() => {
+            if (['home', 'desktop', 'temp', 'documents', 'downloads'].includes(name)) {
+                try {
+                    let path = this.remote.app.getPath(name);
+                    getPathDefer.resolve(path);
+                } catch (error) {
+                    console.log(error);
+                    getPathDefer.resolve('');
+                }
+            } else {
+                getPathDefer.resolve('');
+            }
+        });
+        return getPathDefer.promise;
+    }
+
 
 	private getFullUrl(url: string) {
 		let base = document.baseURI;

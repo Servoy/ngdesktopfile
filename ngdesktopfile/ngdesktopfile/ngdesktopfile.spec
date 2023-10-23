@@ -218,6 +218,11 @@
 		 },
 		 "clearTempFiles": {
 			"returns":"boolean"
+		},
+        "getPath": {
+			"parameters" : [
+				{"name":"path", "type":"string"}
+			]
 		}
 	},
  	"internalApi": {

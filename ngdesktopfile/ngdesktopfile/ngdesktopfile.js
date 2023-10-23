@@ -1004,6 +1004,33 @@ angular.module('ngdesktopfile',['servoy'])
   				});
   				return defer.promise;
 			},
+
+            /**
+             * Retrieves the path to a special directory or file associated with the given name.
+             *
+             * @param {('home' | 'desktop' | 'temp' | 'documents' | 'downloads')} name - The name of the directory or file.
+             * @returns {Promise<string>} A promise that resolves with the path to a special directory or file associated with the name or an empty string if the name is not one of the allowed values.
+             */
+            getPath: function(name) {
+                const defer = $q.defer();
+
+                // Check if the name is one of the allowed values
+                if (['home', 'desktop', 'temp', 'documents', 'downloads'].includes(name)) {
+                    try {
+                        const path = remote.app.getPath(name);
+                        defer.resolve(path);
+                    } catch (error) {
+                        console.log(err);
+                        defer.resolve('');
+                    }
+                } else {
+                    defer.resolve('');
+                }
+
+                return defer.promise;
+            }
+
+
 		}
 
 		
@@ -1040,7 +1067,8 @@ angular.module('ngdesktopfile',['servoy'])
 			writeTXTFileSync: function(path, text_data){console.log("not in electron");},
 			readTXTFileSync: function(path){console.log("not in electron");},
 			setReadOnly: function(path){console.log("not in electron");},
-			getReadOnly: function(path){console.log("not in electron");}
+			getReadOnly: function(path){console.log("not in electron");},
+            getPath: function(path){console.log("not in electron");}
 		}
 	}
 })
