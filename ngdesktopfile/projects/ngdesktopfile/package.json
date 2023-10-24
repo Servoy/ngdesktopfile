@@ -1,9 +1,9 @@
 {
   "name": "@servoy/ngdesktopfile",
-  "version": "2023.3.2",
+  "version": "2023.9.",
   "peerDependencies": {
-    "@angular/common": "^14",
-    "@angular/core": "^14"
+    "@angular/common": "^16",
+    "@angular/core": "^16"
   },
   "dependencies": {
     "tslib": "*"
