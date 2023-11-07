@@ -333,3 +333,12 @@ function readTXTFileSync(path, encoding) {
  */
 function clearTempFiles() {	
 }
+
+/**
+ * Retrieves the path to a special directory or file associated with the given name.
+ *
+ * @param {('home' | 'desktop' | 'temp' | 'documents' | 'downloads')} name - The name of the directory or file.
+ * @returns {Promise<string>} A promise that resolves with the path to a special directory or file associated with the name or an empty string if the name is not one of the allowed values.
+ */
+function getPath(name) {
+}
