@@ -4,7 +4,7 @@
     "packageType": "Web-Service",
     "icon": "https://upload.wikimedia.org/wikipedia/commons/thumb/0/0c/File_alt_font_awesome.svg/512px-File_alt_font_awesome.svg.png",
     "invertIcon": true,
-    "description": "Webservice for file I/O in NGDesktop client",
+    "description": "Provides a web-service for client-side file I/O in NGDesktop clients.",
     "wikiUrl": "https://github.com/Servoy/ngdesktopfile/wiki",
     "sourceUrl": "https://github.com/Servoy/ngdesktopfile",
      "releases": [{"version": "1.0.0-rc1","url": "https://github.com/Servoy/ngdesktopfile/releases/download/v1.0.0-rc1/ngdesktopfile.zip","servoy-version":"2019.9"},
