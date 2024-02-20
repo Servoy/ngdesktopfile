@@ -8,6 +8,7 @@ import * as electron from 'electron';
 import * as chokidar from 'chokidar';
 import { WriteFileOptions } from 'fs';
 
+type CallableFunction = (...args: unknown[]) => void;
 
 @Injectable()
 export class NGDesktopFileService {
@@ -85,7 +86,7 @@ export class NGDesktopFileService {
 	 * @param dir - directory's full path
 	 * @param callback - the callback method to be executed
 	 */
-	watchDir(dir: string, callback: { formname: string; script: string }) {
+	watchDir(dir: string, callback: CallableFunction) {
 		/** Please check the below used library here: https://github.com/paulmillr/chokidar
 		 * add, addDir, change, unlink, unlinkDir these are all events.
 		 * add is for adding file
@@ -102,24 +103,24 @@ export class NGDesktopFileService {
 			this.waitForDefered(() => {
 				watcher.on('add', (path, stats) => {
 					this.log.debug('this is an add event\n', 'path: ' + path + '\n', stats);
-					this.servoyService.executeInlineScript(callback.formname, callback.script, [path]);
+					callback(path);
 				}).on('addDir', (path, stats) => {
 					this.log.debug('this is an addDir event\n', 'path: ' + path + '\n', stats);
-					this.servoyService.executeInlineScript(callback.formname, callback.script, [path]);
+					callback(path);
 				}).on('change', (path, stats) => {
 					// For MacOS: Do not make the callback when .DS_Store is changed.
 					// DS_Store is a file that stores custom attributes of its containing folder,
 					// such as the position of icons or the choice of a background image
 					if (!path.includes('.DS_Store')) {
 						this.log.debug('this is a change file event\n', 'path: ' + path + '\n', stats);
-						this.servoyService.executeInlineScript(callback.formname, callback.script, [path]);
+						callback(path);
 					}
 				}).on('unlink', (path) => {
 					this.log.debug('unlink (delete) event\n', 'path: ' + path);
-					this.servoyService.executeInlineScript(callback.formname, callback.script, [path]);
+					callback(path);
 				}).on('unlinkDir', (path) => {
 					this.log.debug('unlinkDir (delete folder) event\n', 'path: ' + path);
-					this.servoyService.executeInlineScript(callback.formname, callback.script, [path]);
+					callback(path);
 				}).on('error', (error) => {
 					this.log.error('Watcher error: ' + error);
 				});
@@ -150,11 +151,11 @@ export class NGDesktopFileService {
 	 * Watches a give path, that should represent a file, for modifications.
 	 * Please use forward slashes (/) instead of backward slashes in the path/filename
 	 */
-	watchFile(path: string, callback: { formname: string; script: string }) {
+	watchFile(path: string, callback: CallableFunction) {
 		this.waitForDefered(() => {
 			this.fs.watchFile(path, (curr, prev) => {
 				if (curr.mtime !== prev.mtime)
-					this.servoyService.executeInlineScript(callback.formname, callback.script, [path]);
+					callback(path);
 			});
 		});
 	}
@@ -335,7 +336,7 @@ export class NGDesktopFileService {
 	/**
 	 * Select a folder and pass its path to the callback.
 	 */
-	selectDirectory(callback: { formname: string; script: string }) {
+	selectDirectory(callback: CallableFunction) {
 		this.waitForDefered(() => {
 			const options: electron.OpenDialogOptions = {
 				title: 'Select folder',
@@ -345,7 +346,7 @@ export class NGDesktopFileService {
 			this.dialog.showOpenDialog(this.remote.getCurrentWindow(), options)
 				.then((result) => {
 					if (!result.canceled) {
-						this.servoyService.executeInlineScript(callback.formname, callback.script, [result.filePaths[0]]);
+						callback(result.filePaths[0]);
 					}
 				}).catch((err) => {
 					this.log.info(err);
@@ -426,7 +427,7 @@ export class NGDesktopFileService {
 	 * buttonLabel: String - custom label for the confirmation button, when left empty the default label will be used.
 	 * filters: Array<{name: String, extensions: Array<String>}> - an array of file filters (e.g. [{ name: 'Images', extensions: ['jpg', 'png', 'gif'] }])
 	 */
-	showSaveDialog(callback: { formname: string; script: string }, options: electron.SaveDialogSyncOptions) {
+	showSaveDialog(callback: CallableFunction, options: electron.SaveDialogSyncOptions) {
 		this.waitForDefered(() => {
 			if (!options) {
 				options = {};
@@ -434,7 +435,7 @@ export class NGDesktopFileService {
 			this.dialog.showSaveDialog(this.remote.getCurrentWindow(), options)
 				.then((result) => {
 					if (!result.canceled) {
-						this.servoyService.executeInlineScript(callback.formname, callback.script, [result.filePath]);
+						callback(result.filePath);
 					}
 				}).catch((err) => {
 					this.log.info(err);
@@ -488,7 +489,7 @@ export class NGDesktopFileService {
 	 * @param callback
 	 * @param [options]
 	 */
-	showOpenDialog(callback: { formname: string; script: string }, options: electron.OpenDialogOptions) {
+	showOpenDialog(callback: CallableFunction, options: electron.OpenDialogOptions) {
 		this.waitForDefered(() => {
 			if (!options) {
 				options = {};
@@ -496,7 +497,7 @@ export class NGDesktopFileService {
 			this.dialog.showOpenDialog(this.remote.getCurrentWindow(), options)
 				.then((result) => {
 					if (!result.canceled) {
-						this.servoyService.executeInlineScript(callback.formname, callback.script, [result.filePaths]);
+						callback(result.filePaths);
 					}
 				}).catch((err) => {
 					this.log.info(err);
@@ -559,11 +560,11 @@ export class NGDesktopFileService {
 	 * @param path
 	 * @param [errorCallback]
 	 */
-	deleteFile(path: string, errorCallback: { formname: string; script: string }) {
+	deleteFile(path: string, errorCallback: CallableFunction) {
 		this.waitForDefered(() => {
 			this.defer = new Deferred();
 			this.fs.unlink(path, (err) => {
-				if (err && errorCallback) this.servoyService.executeInlineScript(errorCallback.formname, errorCallback.script, [err]);
+				if (err && errorCallback) errorCallback(err);
 			});
 			this.defer.resolve(null);
 			this.defer = null;
