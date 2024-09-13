@@ -4,18 +4,21 @@
  */
 function homeDir() {
 }
+
 /**
  * Returns the tmp directory of the client machine.
  * Will return always a both with forward slashes.
  */
 function tmpDir() {
 }
+
 /**
  * returns an array of filenames that are in the given path. 
  * Please use forward slashes (/) instead of backward slashes.
  */
 function listDir(path) {
 }
+
 /**
  * Watches a directory for changes at the given path. 
  * 
@@ -36,6 +39,7 @@ function unwatchDir(path) {
  */
 function watchFile(path, callback) {
 }
+
 /**
  * Removes the watch to the file that was added by the watchFile() function.
  * Please use forward slashes (/) instead of backward slashes in the path/filename
@@ -44,9 +48,9 @@ function unwatchFile(path) {
 }
 
 /**
- * A synchronous way to write bytes to a temporary file 
- * with a unique pseudo-random name, in a directory for temporary files. 
- * This directory will be cleared when the ngDesktop window is closed or when clearTempFiles() is called. 
+ * A synchronous way to write bytes to a temporary file with a unique pseudo-random name, in a directory for temporary files.
+ * This directory will be cleared when the ngDesktop window is closed or when clearTempFiles() is called.
+ * 
  * The function returns the path of the created file as a string.
  * 
  * @param {Object} bytes
@@ -57,21 +61,22 @@ function writeTempFileSync(bytes) {
 }
 
 /**
- * Writes the given bytes to the path, if the path has sub directories that are not there 
- * then those are made. If the path is missing or contain only the file name then the  
- * native system dialog for saving files it is called.
- * When finish, the optional callback it is called on finish with the written path or 'error' string values.
- * An optional passThru object is also passed back to the callback function;
- * Please use forward slashes (/) instead of backward slashes in the path/filename
+ * Writes the given bytes to the path; if the path has sub-directories that are not there, then those are created.
+ * If the path is missing or contains only the file name, then the native system dialog for saving files is used.
+ * 
+ * When done, the optional callback is called with the written path (as a string), or 'error'. An optional passThru object is also passed back to the callback function.
+ * Please use forward slashes (/) instead of backward slashes in path/filename.
  */
 function writeFile(path, bytes, callback, passThru) {
 }
+
 /**
- * Write a file to a given path. If called by a synchronised function, 
- * pass a Deferred object.
+ * Write a file to a given path. 
+ * If called by a synchronised function, pass a Deferred object.
  */
 function writeFileImpl(path, url, key, passThru, syncDefer) {
 }
+
  /**
  * Reads and returns the content of the given file
  * 
@@ -81,6 +86,7 @@ function writeFileImpl(path, url, key, passThru, syncDefer) {
  */
 function  readFileSync(path) {
 }
+
 /**
  * Reads the given bytes of a path, the callback is a function that will get as parameters the 'path' as a String and the 'file' as a JSUpload object
  * If the path is missing or contain only the file name then the native system dialog for opening files it is called.
@@ -90,8 +96,10 @@ function  readFileSync(path) {
 function readFile(callback, path) {
 	// empty impl, is implemented in server side api calling the impl method below.
 }
+
 function readFileImpl(path, id, syncDefer) {
 }
+
 /**
  * Select a folder and pass its path to the callback.
  */
@@ -111,86 +119,98 @@ function selectFileSync( path ) {
 }
 
 /**
- * Shows a file save dialog and calls the callback method with the file path
+ * Shows a file save dialog and calls the callback method with the file path.<br/><br/>
  * 
- * For the options object see https://www.electronjs.org/docs/api/dialog#dialogshowsavedialogbrowserwindow-options
+ * For the options object see https://www.electronjs.org/docs/api/dialog#dialogshowsavedialogbrowserwindow-options<br/><br/>
  * 
+ * Core options are:<br/>
+ * <ul>
+ *   <li><b>title</b>: String the dialog title</li>
+ *   <li><b>defaultPath</b>: String - absolute directory path, absolute file path, or file name to use by default.</li>
+ *   <li><b>buttonLabel</b>: String - custom label for the confirmation button, when left empty the default label will be used.</li>
+ *   <li><b>filters</b>: Array&lt;{name: String, extensions: Array&lt;String&gt;}&gt; - an array of file filters (e.g. [{ name: 'Images', extensions: ['jpg', 'png', 'gif'] }])</li>
+ * </ul>
  * @param {Function} callback
  * @param {{title: String=, defaultPath: String=, buttonLabel: String=, filters: Array<{name: String, extensions: Array<String>}>=}} [options]
- * 
- * Core options are
- * 
- * title: String the dialog title
- * defaultPath: String - absolute directory path, absolute file path, or file name to use by default.
- * buttonLabel: String - custom label for the confirmation button, when left empty the default label will be used.
- * filters: Array<{name: String, extensions: Array<String>}> - an array of file filters (e.g. [{ name: 'Images', extensions: ['jpg', 'png', 'gif'] }])
  */
 function showSaveDialog(callback, options) {
 }
+
 /**
- * Shows a file save dialog
+ * Shows a file save dialog.<br/><br/>
  * 
- * To not block any process, showSaveDialog with a callback method is preferred over this method
+ * To not block any process, showSaveDialog with a callback method is preferred over this method.<br/><br/>
  * 
- * For the options object see https://www.electronjs.org/docs/api/dialog#dialogshowsavedialogsyncbrowserwindow-options
+ * For the options object see https://www.electronjs.org/docs/api/dialog#dialogshowsavedialogsyncbrowserwindow-options<br/><br/>
+ * 
+ * Core options are:<br/>
+ * <ul>
+ *   <li><b>title</b>: String the dialog title</li>
+ *   <li><b>defaultPath</b>: String - absolute directory path, absolute file path, or file name to use by default.</li>
+ *   <li><b>buttonLabel</b>: String - custom label for the confirmation button, when left empty the default label will be used.</li>
+ *   <li><b>filters</b>: Array&lt;{name: String, extensions: Array&lt;String&gt;}&gt; - an array of file filters (e.g. [{ name: 'Images', extensions: ['jpg', 'png', 'gif'] }])</li>
+ * </ul>
  * 
  * @param {{title: String=, defaultPath: String=, buttonLabel: String=, filters: Array<{name: String, extensions: Array<String>}>=}} [options]
- * 
- * Core options are
- * 
- * title: String the dialog title
- * defaultPath: String - absolute directory path, absolute file path, or file name to use by default.
- * buttonLabel: String - custom label for the confirmation button, when left empty the default label will be used.
- * filters: Array<{name: String, extensions: Array<String>}> - an array of file filters (e.g. [{ name: 'Images', extensions: ['jpg', 'png', 'gif'] }])
- * 
  * @return {String}
  */
 function showSaveDialogSync(options) {
 }
+
 /**
- * Shows a file open dialog and calls the callback with the selected file path(s)
+ * Shows a file open dialog and calls the callback with the selected file path(s).<br/><br/>
  * 
- * For the options object see https://www.electronjs.org/docs/api/dialog#dialogshowopendialogbrowserwindow-options
+ * For the options object see https://www.electronjs.org/docs/api/dialog#dialogshowopendialogbrowserwindow-options<br/><br/>
  * 
- * Core options are
- * 
- * title: String the dialog title
- * defaultPath: String the default (starting) path
- * buttonLabel: String custom label for the confirmation button, when left empty the default label will be used.
- * filters: Array<{name: String, extensions: Array<String>}> an array of file filters (e.g. [{ name: 'Images', extensions: ['jpg', 'png', 'gif'] }])
- * properties: an Array of property keywords such as 
- * 	<code>openFile</code> - Allow files to be selected.
- * 	<code>openDirectory</code> - Allow directories to be selected.
- *  <code>multiSelections</code> - Allow multiple paths to be selected.
+ * The core options are:<br/>
+ * <ul>
+ * <li><b>title</b>: String the dialog title</li>
+ * <li><b>defaultPath</b>: String the default (starting) path</li>
+ * <li><b>buttonLabel</b>: String custom label for the confirmation button, when left empty the default label will be used.</li>
+ * <li><b>filters</b>: Array&lt;{name: String, extensions: Array&lt;String&gt;}&gt; an array of file filters (e.g. [{ name: 'Images', extensions: ['jpg', 'png', 'gif'] }])</li>
+ * <li><b>properties</b>: an Array of property keywords such as:
+ *   <ul> 
+ * 	   <li><code>openFile</code> - Allow files to be selected.</li>
+ * 	   <li><code>openDirectory</code> - Allow directories to be selected.</li>
+ *     <li><code>multiSelections</code> - Allow multiple paths to be selected.</li>
+ *   </ul>
+ * </li>
+ * </ul>
  * 
  * @param {Function} callback
  * @param {{title: String=, defaultPath: String=, buttonLabel: String=, filters: Array<{name: String, extensions: Array<String>}>=, properties: Array<String>}} [options] 
  */
 function showOpenDialog(callback, options) {
 }
+
 /**
- * Shows a file open dialog and returns the selected file path(s)
+ * Shows a file open dialog and returns the selected file path(s).<br/><br/>
  * 
- * To not block any process, showOpenDialog with a callback method is preferred over this method
+ * To not block any process, showOpenDialog with a callback method is preferred over this method.<br/><br/>
  * 
- * For the options object see https://www.electronjs.org/docs/api/dialog#dialogshowopendialogsyncbrowserwindow-options
+ * For the options object see https://www.electronjs.org/docs/api/dialog#dialogshowopendialogsyncbrowserwindow-options<br/><br/>
  * 
- * Core options are
- * 
- * title: String the dialog title
- * defaultPath: String the default (starting) path
- * buttonLabel: String custom label for the confirmation button, when left empty the default label will be used.
- * filters: Array<{name: String, extensions: Array<String>}> an array of file filters (e.g. [{ name: 'Images', extensions: ['jpg', 'png', 'gif'] }])
- * properties: an Array of property keywords such as 
- * 	<code>openFile</code> - Allow files to be selected.
- * 	<code>openDirectory</code> - Allow directories to be selected.
- *  <code>multiSelections</code> - Allow multiple paths to be selected.
+ * Core options are:<br/>
+ * <ul>
+ *   <li><b>title</b>: String the dialog title</li>
+ *   <li><b>defaultPath</b>: String the default (starting) path</li>
+ *   <li><b>buttonLabel</b>: String custom label for the confirmation button, when left empty the default label will be used.</li>
+ *   <li><b>filters</b>: Array&lt;{name: String, extensions: Array&lt;String&gt;}&gt; an array of file filters (e.g. [{ name: 'Images', extensions: ['jpg', 'png', 'gif'] }])</li>
+ *   <li><b>properties</b>: an Array of property keywords such as:
+ *    <ul>
+ * 	   <li><code>openFile</code> - Allow files to be selected.</li>
+ * 	   <li><code>openDirectory</code> - Allow directories to be selected.</li>
+ *     <li><code>multiSelections</code> - Allow multiple paths to be selected.</li>
+ *    </ul>
+ *   </li>
+ * </ul>
  * 
  * @param {{title: String=, defaultPath: String=, buttonLabel: String=, filters: Array<{name: String, extensions: Array<String>}>=, properties: Array<String>}} [options]
  * @return <Array<String>}  
  */
 function showOpenDialogSync(options) {
 }
+
 /**
  * Delete the given file, returning a boolean indicating success or failure
  * @param {String} path
@@ -206,6 +226,7 @@ function showOpenDialogSync(options) {
  */
 function deleteFile(path, errorCallback) {
 }
+
 /**
  * Return a 'stats' object containing related file's information's.
  * Please use forward slashes (/) instead of backward slashes in the path
@@ -239,6 +260,7 @@ function openFile(path) {
  */
 function  exists(path) {
 }
+
 /**
  * Synchronously append data to a file, creating the file if it does not yet exist.
  * 
@@ -249,6 +271,7 @@ function  exists(path) {
  */
 function appendToTXTFile(path, text, encoding) {
 }
+
 /**
  * Synchronously copies src to dest. By default, dest is overwritten if it already exists.
  * 
@@ -259,6 +282,7 @@ function appendToTXTFile(path, text, encoding) {
  */
 function copyFile(src, dest, overwriteDest) {
 }
+
 /**
  * Synchronously creates a folder, including any necessary but nonexistent parent folders.
  * 
@@ -267,6 +291,7 @@ function copyFile(src, dest, overwriteDest) {
  */
 function createFolder(path) {
 }
+
 /**
  * Synchronously deletes a folder, fails when folder is not empty
  * 
@@ -275,6 +300,7 @@ function createFolder(path) {
  */
 function deleteFolder(path) {
 }
+
 /**
  * Synchronously rename file at oldPath to the pathname provided as newPath. In the case that newPath already exists, it will be overwritten.
  * 
@@ -285,6 +311,7 @@ function deleteFolder(path) {
  */
 function renameFile(oldPath, newPath) {
 }
+
 /**
  * Writes text to the given path/filename
  * 
@@ -296,6 +323,7 @@ function renameFile(oldPath, newPath) {
  */
 function writeTXTFileSync(path, text_data, encoding) {
 }
+
 /**
  * Reads and returns the text of the given path/filename
  * 
@@ -306,6 +334,7 @@ function writeTXTFileSync(path, text_data, encoding) {
  */
 function readTXTFileSync(path, encoding) {
 }
+
 /**
  * Set permisions to the specified file. 
  * If readOnly parameter is false, the file permisions flags will be set to read/write mode
@@ -338,7 +367,7 @@ function clearTempFiles() {
  * Retrieves the path to a special directory or file associated with the given name.
  *
  * @param {('home' | 'desktop' | 'temp' | 'documents' | 'downloads')} name - The name of the directory or file.
- * @returns {Promise<string>} A promise that resolves with the path to a special directory or file associated with the name or an empty string if the name is not one of the allowed values.
+ * @returns {String} The path to a special directory or file associated with the name, or an empty string if the name is not one of the allowed values.
  */
 function getPath(name) {
 }

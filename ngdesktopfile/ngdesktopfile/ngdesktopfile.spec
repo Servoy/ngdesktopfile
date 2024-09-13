@@ -222,7 +222,8 @@
         "getPath": {
 			"parameters" : [
 				{"name":"path", "type":"string"}
-			]
+			],
+			"returns": "string"
 		}
 	},
  	"internalApi": {
