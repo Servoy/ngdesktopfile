@@ -1,6 +1,8 @@
 /**
  * Returns the home dir of the user like c:/users/[username] under windows.
  * Will return always a both with forward slashes.
+ * 
+ * @return {String} The full path of the user's home directory, using forward slashes.
  */
 function homeDir() {
 }
@@ -8,6 +10,8 @@ function homeDir() {
 /**
  * Returns the tmp directory of the client machine.
  * Will return always a both with forward slashes.
+ * 
+ * @return {String} The full path of the system's temporary directory, using forward slashes.
  */
 function tmpDir() {
 }
@@ -15,6 +19,8 @@ function tmpDir() {
 /**
  * returns an array of filenames that are in the given path. 
  * Please use forward slashes (/) instead of backward slashes.
+ * 
+ * @return {Array<String>} An array of filenames present in the specified directory path.
  */
 function listDir(path) {
 }
@@ -22,8 +28,8 @@ function listDir(path) {
 /**
  * Watches a directory for changes at the given path. 
  * 
- * @param path - directory's full path
- * @param callback - the callback method to be executed
+ * @param {String} path - directory's full path
+ * @param {Function} callback - the callback method to be executed
  */
 function watchDir(path, callback) {
 }
@@ -80,9 +86,8 @@ function writeFileImpl(path, url, key, passThru, syncDefer) {
  /**
  * Reads and returns the content of the given file
  * 
- * @param {String} path
- * 
- * @return {JSUpload}
+ * @param {String} [path] The full path of the file to read.
+ * @return {JSUpload} The content of the file.
  */
 function  readFileSync(path) {
 }
@@ -108,6 +113,8 @@ function selectDirectory(callback) {
 
 /**
 * Return the selected folder.
+* @param {String} [path] The initial path to open the directory selection dialog at.
+* @return {String} The full path of the selected folder, or an empty string if no folder was selected.
 */
 function selectDirectorySync( path ) {
 }
@@ -130,7 +137,7 @@ function selectFileSync( path ) {
  *   <li><b>buttonLabel</b>: String - custom label for the confirmation button, when left empty the default label will be used.</li>
  *   <li><b>filters</b>: Array&lt;{name: String, extensions: Array&lt;String&gt;}&gt; - an array of file filters (e.g. [{ name: 'Images', extensions: ['jpg', 'png', 'gif'] }])</li>
  * </ul>
- * @param {Function} callback
+ * @param {Function} callback A function that receives the selected file path as an argument.
  * @param {{title: String=, defaultPath: String=, buttonLabel: String=, filters: Array<{name: String, extensions: Array<String>}>=}} [options]
  */
 function showSaveDialog(callback, options) {
@@ -151,8 +158,8 @@ function showSaveDialog(callback, options) {
  *   <li><b>filters</b>: Array&lt;{name: String, extensions: Array&lt;String&gt;}&gt; - an array of file filters (e.g. [{ name: 'Images', extensions: ['jpg', 'png', 'gif'] }])</li>
  * </ul>
  * 
- * @param {{title: String=, defaultPath: String=, buttonLabel: String=, filters: Array<{name: String, extensions: Array<String>}>=}} [options]
- * @return {String}
+ * @param {Object} [options] {{title: String=, defaultPath: String=, buttonLabel: String=, filters: Array<{name: String, extensions: Array<String>}>=}}
+ * @return {String} The full path of the selected file if the user confirmed the dialog, or an empty string if the dialog was canceled.
  */
 function showSaveDialogSync(options) {
 }
@@ -177,8 +184,8 @@ function showSaveDialogSync(options) {
  * </li>
  * </ul>
  * 
- * @param {Function} callback
- * @param {{title: String=, defaultPath: String=, buttonLabel: String=, filters: Array<{name: String, extensions: Array<String>}>=, properties: Array<String>}} [options] 
+ * @param {Function} callback A function that receives the selected file path(s) as an argument.
+ * @param @param {Object} [options] {{title: String=, defaultPath: String=, buttonLabel: String=, filters: Array<{name: String, extensions: Array<String>}>=, properties: Array<String>}}
  */
 function showOpenDialog(callback, options) {
 }
@@ -213,16 +220,17 @@ function showOpenDialogSync(options) {
 
 /**
  * Delete the given file, returning a boolean indicating success or failure
- * @param {String} path
- * @return {boolean}
+ * @param {String} path The full path of the file to be deleted.
+ * @return {boolean} True if the file was successfully deleted; otherwise, false.
  */
  function deleteFileSync(path) {
 }
 
 /**
  * Deletes the given file, optionally calling the error callback when unsuccessful
- * @param {String} path
- * @param {Function} [errorCallback]
+ * 
+ * @param {String} path The full path of the file to be deleted.
+ * @param {Function} [errorCallback] An optional callback function that will be invoked if the deletion fails.
  */
 function deleteFile(path, errorCallback) {
 }
@@ -231,7 +239,8 @@ function deleteFile(path, errorCallback) {
  * Return a 'stats' object containing related file's information's.
  * Please use forward slashes (/) instead of backward slashes in the path
  * 
- * @return {stats}
+ * @param {String} path The full path of the file whose statistics are to be retrieved.
+ * @return {CustomType<ngdesktopfile.stats>} An object containing file-related information.
  */
 function getFileStats(path) {
 }
@@ -267,7 +276,7 @@ function  exists(path) {
  * @param {String} path - file's full path
  * @param {String} text - text to be added
  * @param {String} [encoding] - default utf8
- * @return {boolean}
+  * @return {Boolean} True if the data was successfully appended to the file; otherwise, false.
  */
 function appendToTXTFile(path, text, encoding) {
 }
@@ -278,7 +287,7 @@ function appendToTXTFile(path, text, encoding) {
  * @param {String} src - source filepath to copy
  * @param {String} dest - destination filepath of the copy operation
  * @param {Boolean} [overwriteDest] - default true
- * @return {boolean}
+* @return {boolean} True if the file was successfully copied; otherwise, false.
  */
 function copyFile(src, dest, overwriteDest) {
 }
@@ -287,7 +296,7 @@ function copyFile(src, dest, overwriteDest) {
  * Synchronously creates a folder, including any necessary but nonexistent parent folders.
  * 
  * @param {String} path - folders full path
- * @return {boolean}
+ * @return {boolean} True if the folder was successfully created; otherwise, false.
  */
 function createFolder(path) {
 }
@@ -296,7 +305,7 @@ function createFolder(path) {
  * Synchronously deletes a folder, fails when folder is not empty
  * 
  * @param {String} path - folders full path
- * @return {boolean}
+ * @return {boolean} True if the folder was successfully deleted; otherwise, false.
  */
 function deleteFolder(path) {
 }
@@ -307,7 +316,7 @@ function deleteFolder(path) {
  * @param {String} oldPath - old file full path
  * @param {String} newPath - new file full path
  * 
- * @return {boolean}
+ * @return {boolean} True if the file was successfully renamed; otherwise, false.
  */
 function renameFile(oldPath, newPath) {
 }
@@ -319,7 +328,7 @@ function renameFile(oldPath, newPath) {
  * @param {String} text_data
  * @param {String} [encoding] optional, default 'utf8'
  * 
- * @return {boolean}
+ * @return {boolean} True if the text was successfully written to the file; otherwise, false.
  */
 function writeTXTFileSync(path, text_data, encoding) {
 }
@@ -327,10 +336,10 @@ function writeTXTFileSync(path, text_data, encoding) {
 /**
  * Reads and returns the text of the given path/filename
  * 
- * @param {String} path
+ * @param {String} path The full path of the file to read.
  * @param {String} [encoding] optional, default 'utf8'
  * 
- * @return {String}
+ * @return {String} The content of the file as a string, or an empty string if the file could not be read.
  */
 function readTXTFileSync(path, encoding) {
 }
@@ -341,7 +350,7 @@ function readTXTFileSync(path, encoding) {
  * 
  * 
  * @param path - file path
- * @return {boolean}
+ * @return {boolean} True if the file permissions were successfully updated; otherwise, false.
  */
  function setReadOnly(path, flag) {
 }
@@ -350,15 +359,15 @@ function readTXTFileSync(path, encoding) {
  * Verify readonly status on the specified path. Returns true for readonly otherwise false
  * 
  * @param path - directory's full path
- * @return {boolean}
+ * @return {boolean} True if the file or folder is read-only; otherwise, false.
  */
  function getReadOnly(path) {
 }
 
 /**
  * Clears the directory where temporary files are stored (e.g. when using writeTempFileSync(bytes)).
- * Returns true if successful.
- * @return {boolean}
+ * 
+ * @return {boolean} True if the temporary files directory was successfully cleared; otherwise, false.
  */
 function clearTempFiles() {	
 }
