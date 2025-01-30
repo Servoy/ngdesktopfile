@@ -20,6 +20,7 @@ function tmpDir() {
  * returns an array of filenames that are in the given path. 
  * Please use forward slashes (/) instead of backward slashes.
  * 
+ * @param {String} path The full path of the directory to list files from.
  * @return {Array<String>} An array of filenames present in the specified directory path.
  */
 function listDir(path) {
@@ -36,12 +37,18 @@ function watchDir(path, callback) {
 
 /**
  * Stop watching a directory found at the given path.
+ * 
+ * @param {String} path The full path of the directory to stop watching for changes.
  */
 function unwatchDir(path) {
 }
+
 /**
  * Watches a give path, that should represent a file, for modifications.
  * Please use forward slashes (/) instead of backward slashes in the path/filename
+ * 
+ * @param {String} path The full path of the file to watch for modifications.
+ * @param {Function} callback A function that will be triggered when the file is modified.
  */
 function watchFile(path, callback) {
 }
@@ -49,6 +56,8 @@ function watchFile(path, callback) {
 /**
  * Removes the watch to the file that was added by the watchFile() function.
  * Please use forward slashes (/) instead of backward slashes in the path/filename
+ * 
+ * @param {String} path The full path of the file to stop watching for modifications.
  */
 function unwatchFile(path) {
 }
@@ -59,9 +68,8 @@ function unwatchFile(path) {
  * 
  * The function returns the path of the created file as a string.
  * 
- * @param {Object} bytes
- *
- * @return {String}
+ * @param {Array<Byte>} bytes The binary data to be written to the temporary file.
+ * @return {String} The full path of the created temporary file.
  */
 function writeTempFileSync(bytes) {
 }
@@ -72,6 +80,11 @@ function writeTempFileSync(bytes) {
  * 
  * When done, the optional callback is called with the written path (as a string), or 'error'. An optional passThru object is also passed back to the callback function.
  * Please use forward slashes (/) instead of backward slashes in path/filename.
+ * 
+ * @param {String} path The full path where the file will be written. If only a filename is provided, a save dialog will be shown.
+ * @param {Array<Byte>} bytes The binary data to write to the file.
+ * @param {Function} [callback] An optional function that receives the written file path or an 'error' string if the operation fails.
+ * @param {Object} [passThru] An optional object that will be passed back to the callback function.
  */
 function writeFile(path, bytes, callback, passThru) {
 }
@@ -97,6 +110,8 @@ function  readFileSync(path) {
  * If the path is missing or contain only the file name then the native system dialog for opening files it is called.
  * Please use forward slashes (/) instead of backward slashes in the path/filename
  * 
+ * @param {Function} callback A function that receives the file path as a string and the file content as a JSUpload object.
+ * @param {String} [path] The full path of the file to read. If omitted or only a filename is provided, a file open dialog will be shown.
  */
 function readFile(callback, path) {
 	// empty impl, is implemented in server side api calling the impl method below.
@@ -107,6 +122,8 @@ function readFileImpl(path, id, syncDefer) {
 
 /**
  * Select a folder and pass its path to the callback.
+ * 
+ * @param {Function} callback A function that receives the selected folder's path as an argument.
  */
 function selectDirectory(callback) {
 }
@@ -121,6 +138,10 @@ function selectDirectorySync( path ) {
 	
 /**
  * Return the selected file.
+ * 
+ * @param {String} [path] The initial path to open the file selection dialog at.
+ * 
+ * @return {String} The full path of the selected file, or an empty string if no file was selected.
  */
 function selectFileSync( path ) {
 }
@@ -138,7 +159,7 @@ function selectFileSync( path ) {
  *   <li><b>filters</b>: Array&lt;{name: String, extensions: Array&lt;String&gt;}&gt; - an array of file filters (e.g. [{ name: 'Images', extensions: ['jpg', 'png', 'gif'] }])</li>
  * </ul>
  * @param {Function} callback A function that receives the selected file path as an argument.
- * @param {{title: String=, defaultPath: String=, buttonLabel: String=, filters: Array<{name: String, extensions: Array<String>}>=}} [options]
+ * @param {Object} [options] {{title: String=, defaultPath: String=, buttonLabel: String=, filters: Array<{name: String, extensions: Array<String>}>=}} [options]
  */
 function showSaveDialog(callback, options) {
 }
@@ -185,7 +206,7 @@ function showSaveDialogSync(options) {
  * </ul>
  * 
  * @param {Function} callback A function that receives the selected file path(s) as an argument.
- * @param @param {Object} [options] {{title: String=, defaultPath: String=, buttonLabel: String=, filters: Array<{name: String, extensions: Array<String>}>=, properties: Array<String>}}
+ * @param {Object} [options] {{title: String=, defaultPath: String=, buttonLabel: String=, filters: Array<{name: String, extensions: Array<String>}>=, properties: Array<String>}}
  */
 function showOpenDialog(callback, options) {
 }
@@ -212,8 +233,8 @@ function showOpenDialog(callback, options) {
  *   </li>
  * </ul>
  * 
- * @param {{title: String=, defaultPath: String=, buttonLabel: String=, filters: Array<{name: String, extensions: Array<String>}>=, properties: Array<String>}} [options]
- * @return <Array<String>}  
+ * @param {Object} [options] {{title: String=, defaultPath: String=, buttonLabel: String=, filters: Array<{name: String, extensions: Array<String>}>=, properties: Array<String>}} [options]
+ * @return {Array<String>} An array of selected file or directory paths, or an empty array if no selection was made.
  */
 function showOpenDialogSync(options) {
 }
@@ -265,7 +286,7 @@ function openFile(path) {
  * It returns true if the path exists, false otherwise.
  * 
  * @param {String} path - file's full path
- * @return {boolean}
+ * @return {Boolean} True if the specified path exists in the file system; otherwise, false.
  */
 function  exists(path) {
 }
@@ -276,7 +297,7 @@ function  exists(path) {
  * @param {String} path - file's full path
  * @param {String} text - text to be added
  * @param {String} [encoding] - default utf8
-  * @return {Boolean} True if the data was successfully appended to the file; otherwise, false.
+ * @return {Boolean} True if the data was successfully appended to the file; otherwise, false.
  */
 function appendToTXTFile(path, text, encoding) {
 }
@@ -324,9 +345,9 @@ function renameFile(oldPath, newPath) {
 /**
  * Writes text to the given path/filename
  * 
- * @param {String} path
- * @param {String} text_data
- * @param {String} [encoding] optional, default 'utf8'
+ * @param {String} path The full path of the file where the text will be written.
+ * @param {String} text_data The text content to write into the file.
+ * @param {String} [encoding] Encoding code (default 'utf8')
  * 
  * @return {boolean} True if the text was successfully written to the file; otherwise, false.
  */
@@ -349,8 +370,9 @@ function readTXTFileSync(path, encoding) {
  * If readOnly parameter is false, the file permisions flags will be set to read/write mode
  * 
  * 
- * @param path - file path
- * @return {boolean} True if the file permissions were successfully updated; otherwise, false.
+ * @param {String} path - File path
+ * @param {Boolean} flag If true, sets the file to read-only mode; if false, allows read/write access.
+ * @return {Boolean} True if the file permissions were successfully updated; otherwise, false.
  */
  function setReadOnly(path, flag) {
 }
@@ -358,8 +380,8 @@ function readTXTFileSync(path, encoding) {
 /**
  * Verify readonly status on the specified path. Returns true for readonly otherwise false
  * 
- * @param path - directory's full path
- * @return {boolean} True if the file or folder is read-only; otherwise, false.
+ * @param {String} path - directory's full path
+ * @return {Boolean} True if the file or folder is read-only; otherwise, false.
  */
  function getReadOnly(path) {
 }
@@ -375,8 +397,8 @@ function clearTempFiles() {
 /**
  * Retrieves the path to a special directory or file associated with the given name.
  *
- * @param {('home' | 'desktop' | 'temp' | 'documents' | 'downloads')} name - The name of the directory or file.
- * @returns {String} The path to a special directory or file associated with the name, or an empty string if the name is not one of the allowed values.
+ * @param {String} path {('home' | 'desktop' | 'temp' | 'documents' | 'downloads')} name - The name of the directory or file.
+ * @return {String} The path to a special directory or file associated with the name, or an empty string if the name is not one of the allowed values.
  */
 function getPath(name) {
 }
