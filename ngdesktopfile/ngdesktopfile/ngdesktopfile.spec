@@ -262,7 +262,8 @@
 		},
 		"readCallback": {
 			"parameters" : [
-				{"name":"data", "type":"object"}
+				{"name":"data", "type":"object"},
+                {"name":"id", "type":"string", "optional": true}
 			]
 		},
         "writeCallback": {

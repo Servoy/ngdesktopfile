@@ -982,6 +982,15 @@ export class NGDesktopFileService {
 
 	private readUrlFromPath(path: string, id: string, syncDefer: Deferred<boolean>) {
 		const form = new this.formData();
+        
+        form.on('error', (err) => {
+            if (syncDefer) {
+                syncDefer.reject("failed to read the file: " + path);
+            }
+			else {
+				this.servoyService.callServiceServerSideApi('ngdesktopfile', 'readCallback', ["Error reading file " + path, id]);
+			}
+        })
 
 		form.append('path', path);
 		form.append('id', id);
@@ -999,13 +1008,17 @@ export class NGDesktopFileService {
 		request.setHeader('content-type', headers['content-type']);
 		form.pipe(request);
 		request.on('error', (err) => {
+            if (syncDefer) {
+                syncDefer.reject("failed to read the file: " + path);
+            }
+			else {
+				this.servoyService.callServiceServerSideApi('ngdesktopfile', 'readCallback', ["Error reading file " + path, id]);
+			}
 			if (err) throw err;
 		});
 		reader.on('end', () => {
 			if (syncDefer) {
-				setTimeout(() => {
-					syncDefer.resolve(true);
-				}, 100);
+				syncDefer.resolve(true);
 			}
 		});
 	}

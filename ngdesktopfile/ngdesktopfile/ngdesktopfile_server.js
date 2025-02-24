@@ -19,12 +19,16 @@ $scope.api.readFileSync = function(path)
 {
 	var key=Math.random().toString(10);
 	storage[key] = {
-        callback: $scope.api.syncCallback, 
+        callback: $scope.syncCallback, 
+        path: path,
         isSync: true    
     };
-	$scope.api.readFileSyncImpl(path, key); // this will resume after readCallback execution return
+	$scope.api.readFileImpl(path, key); // this will resume after readCallback execution return
+    servoyApi.suspend();
     var tmpData = storage[key].syncData;
+    var tmpError = storage[key].error;
     storage[key] = null;
+    if (tmpError) throw tmpError;
     return tmpData;     //return my temporary path
 }
 
@@ -32,23 +36,38 @@ $scope.api.readFile = function(callback, path)
 {
 	var key=Math.random().toString(10);
 	storage[key] = {
-        callback: callback
+        callback: callback,
+		path: path
     };
 	$scope.api.readFileImpl(path, key,  null);
 }
 
-$scope.api.readCallback = function(data) {
-	var key = data.getFieldValue("id");
+$scope.readCallback = function(data, id) {
+	var key = null;
+    var path = null;
+    var error = null;
+    // if id is set then this is the error callback, data is the error message
+    if (id) {
+        key = id;
+        error = data;
+        data = null;
+        path = storage[key].path; 
+    } else {
+        key = data.getFieldValue("id");
+        path = data.getFieldValue("path");
+    }
     if (storage[key].callback && storage[key].isSync) { 
-        storage[key].callback(key, data);
+        storage[key].callback(key, data, error);
     } else if (storage[key].callback) {
-        storage[key].callback(data.getFieldValue("path"), data);
+        storage[key].callback(path, data, error);
         storage[key] = null;
     }
 }
 
-$scope.api.syncCallback = function(key, data) { 
+$scope.syncCallback = function(key, data, error) { 
 	storage[key].syncData = data;
+    storage[key].error = error;
+    servoyApi.resume();
 }
 
 $scope.writeCallback = function(message, key) {

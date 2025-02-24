@@ -98,6 +98,7 @@ function writeFileImpl(path, url, key, passThru, syncDefer) {
 
  /**
  * Reads and returns the content of the given file
+ * This will throw an error if something goes wrong on the client, the error is then the message string. So this needs to be try/catched
  * 
  * @param {String} [path] The full path of the file to read.
  * @return {JSUpload} The content of the file.
@@ -107,10 +108,11 @@ function  readFileSync(path) {
 
 /**
  * Reads the given bytes of a path, the callback is a function that will get as parameters the 'path' as a String and the 'file' as a JSUpload object
+ * If an error is happening in the browser then this error will be given as a 3rd argyument and the second file argument is then null.
  * If the path is missing or contain only the file name then the native system dialog for opening files it is called.
  * Please use forward slashes (/) instead of backward slashes in the path/filename
  * 
- * @param {Function} callback A function that receives the file path as a string and the file content as a JSUpload object.
+ * @param {Function} callback A function that receives the file path as a string and the file content as a JSUpload object or a 3rd argument with the error message.
  * @param {String} [path] The full path of the file to read. If omitted or only a filename is provided, a file open dialog will be shown.
  */
 function readFile(callback, path) {
