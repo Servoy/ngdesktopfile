@@ -1,3 +1,4 @@
+
 /**
  * Returns the home dir of the user like c:/users/[username] under windows.
  * Will return always a both with forward slashes.
