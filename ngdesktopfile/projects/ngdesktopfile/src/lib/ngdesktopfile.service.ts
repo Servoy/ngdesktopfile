@@ -284,21 +284,7 @@ export class NGDesktopFileService {
           }
         });
         return defer.promise;
-      }
-
-	/**
-	 * Reads and returns the content of the given file
-	 *
-	 * @param {String} path
-	 */
-	readFileSync(path: string) {
-	}
-
-	readFileSyncImpl(path: string, id: string) {
-		const syncDefer = new Deferred<boolean>();
-		this.readFileImpl(path, id, syncDefer);
-		return syncDefer.promise;
-	}
+    }
 
 	/**
 	 * Reads the given bytes of a path, the callback is a function that will get as parameters the 'path' as a String and the 'file' as a JSUpload object
@@ -310,11 +296,11 @@ export class NGDesktopFileService {
 		// empty impl, is implemented in server side api calling the impl method below.
 	}
 
-	readFileImpl(path: string, id: string, syncDefer: Deferred<boolean>) {
+	readFileImpl(path: string, id: string) {
 		this.waitForDefered(() => {
 			path = (path != null) ? path : '';
 			if (path.lastIndexOf('/') >= 0) {
-				this.readUrlFromPath(path, id, syncDefer);
+				this.readUrlFromPath(path, id);
 			} else {
 				const options = {
 					title: 'Open file',
@@ -324,7 +310,7 @@ export class NGDesktopFileService {
 				this.dialog.showOpenDialog(this.remote.getCurrentWindow(), options)
 					.then((result) => {
 						if (!result.canceled) {
-							this.readUrlFromPath(result.filePaths[0].replace(/\\/g, '/'), id, syncDefer); //on Windows the path contains backslash
+							this.readUrlFromPath(result.filePaths[0].replace(/\\/g, '/'), id); //on Windows the path contains backslash
 						}
 					}).catch((err) => {
 						this.log.info(err);
@@ -980,16 +966,11 @@ export class NGDesktopFileService {
 		});
 	}
 
-	private readUrlFromPath(path: string, id: string, syncDefer: Deferred<boolean>) {
+	private readUrlFromPath(path: string, id: string) {
 		const form = new this.formData();
         
         form.on('error', (err) => {
-            if (syncDefer) {
-                syncDefer.reject("failed to read the file: " + path);
-            }
-			else {
-				this.servoyService.callServiceServerSideApi('ngdesktopfile', 'readCallback', ["Error reading file " + path, id]);
-			}
+			this.servoyService.callServiceServerSideApi('ngdesktopfile', 'readCallback', ["Error reading file " + path, id]);
         })
 
 		form.append('path', path);
@@ -1008,18 +989,8 @@ export class NGDesktopFileService {
 		request.setHeader('content-type', headers['content-type']);
 		form.pipe(request);
 		request.on('error', (err) => {
-            if (syncDefer) {
-                syncDefer.reject("failed to read the file: " + path);
-            }
-			else {
-				this.servoyService.callServiceServerSideApi('ngdesktopfile', 'readCallback', ["Error reading file " + path, id]);
-			}
+			this.servoyService.callServiceServerSideApi('ngdesktopfile', 'readCallback', ["Error reading file " + path, id]);
 			if (err) throw err;
-		});
-		reader.on('end', () => {
-			if (syncDefer) {
-				syncDefer.resolve(true);
-			}
 		});
 	}
 
