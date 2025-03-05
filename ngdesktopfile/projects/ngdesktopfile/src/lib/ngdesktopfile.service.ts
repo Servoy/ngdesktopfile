@@ -920,24 +920,33 @@ export class NGDesktopFileService {
 				}) as electron.ClientRequest;
 
 				request.on('response', (response) => {
+                    
+                    const resolve = () => {
+                        if (syncDefer) {
+                            syncDefer.resolve(realPath);
+                        } else {
+                            this.servoyService.callServiceServerSideApi('ngdesktopfile', 'writeCallback', [realPath, key]);
+                        }
+                        this.defer.resolve(true);
+                        this.defer = null;
+                    }
 					fileSize = parseInt(response.headers['content-length'] as string, 10);
-					writer = this.fs.createWriteStream(realPath);
-					response.on('data', (chunk) => {
-						writeSize = writeSize + chunk.length;
-						writer.write(chunk);
-
-						if (writeSize === fileSize) {
-							writer.close();
-							
-							if (syncDefer) {
-								syncDefer.resolve(realPath);
-							} else {
-								this.servoyService.callServiceServerSideApi('ngdesktopfile', 'writeCallback', [realPath, key]);
-							}
-							this.defer.resolve(true);
-							this.defer = null;
-						}
-					});
+                    if (fileSize === 0) {
+                        resolve();
+                    }
+                    else {
+    					writer = this.fs.createWriteStream(realPath);
+    					response.on('data', (chunk) => {
+    						writeSize = writeSize + chunk.length;
+    						writer.write(chunk);
+    
+    						if (writeSize === fileSize) {
+    							writer.close();
+    							
+                                resolve();
+    						}
+    					});
+                    }
 				});
 
 				request.on('error', (error) => {
