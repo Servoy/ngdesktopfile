@@ -404,3 +404,53 @@ function clearTempFiles() {
  */
 function getPath(name) {
 }
+
+
+var svy_types = {
+
+    stats: {
+
+        isBlockDevice : null,
+
+        isCharacterDevice : null,
+
+        isDirectory : null,
+
+        isFIFO : null,
+
+        isFile : null,
+
+        isSocket : null,
+
+        isSymbolicLink : null,
+
+        dev : null,
+
+        ino : null,
+
+        mode : null,
+
+        nlink : null,
+
+        uid : null,
+
+        gid : null,
+
+        rdev : null,
+
+        size : null,
+
+        blksize : null,
+
+        blocks : null,
+
+        atimeMs : null,
+
+        mtimeMs : null,
+
+        ctimeMs : null,
+
+        birthtimeMs : null,
+
+    }
+}
