@@ -68,7 +68,7 @@ function unwatchFile(path) {
  * 
  * The function returns the path of the created file as a string.
  * 
- * @param {Array<Byte>} bytes The binary data to be written to the temporary file.
+ * @param {Array<Number>} bytes The binary data to be written to the temporary file.
  * @return {String} The full path of the created temporary file.
  */
 function writeTempFileSync(bytes) {
@@ -82,7 +82,7 @@ function writeTempFileSync(bytes) {
  * Please use forward slashes (/) instead of backward slashes in path/filename.
  * 
  * @param {String} path The full path where the file will be written. If only a filename is provided, a save dialog will be shown.
- * @param {Array<Byte>} bytes The binary data to write to the file.
+ * @param {Array<Number>} bytes The binary data to write to the file.
  * @param {Function} [callback] An optional function that receives the written file path or an 'error' string if the operation fails.
  * @param {Object} [passThru] An optional object that will be passed back to the callback function.
  */
@@ -408,49 +408,93 @@ function getPath(name) {
 
 var svy_types = {
 
-    stats: {
-
-        isBlockDevice : null,
-
-        isCharacterDevice : null,
-
-        isDirectory : null,
-
-        isFIFO : null,
-
-        isFile : null,
-
-        isSocket : null,
-
-        isSymbolicLink : null,
-
-        dev : null,
-
-        ino : null,
-
-        mode : null,
-
-        nlink : null,
-
-        uid : null,
-
-        gid : null,
-
-        rdev : null,
-
-        size : null,
-
-        blksize : null,
-
-        blocks : null,
-
-        atimeMs : null,
-
-        mtimeMs : null,
-
-        ctimeMs : null,
-
-        birthtimeMs : null,
-
-    }
+  /**
+   * Represents file system statistics for a file or directory.
+   */
+  stats: {
+    /**
+     * Indicates if the file is a block device.
+     */
+    isBlockDevice: null,
+    /**
+     * Indicates if the file is a character device.
+     */
+    isCharacterDevice: null,
+    /**
+     * Indicates if the path is a directory.
+     */
+    isDirectory: null,
+    /**
+     * Indicates if the file is a FIFO (named pipe).
+     */
+    isFIFO: null,
+    /**
+     * Indicates if the path is a regular file.
+     */
+    isFile: null,
+    /**
+     * Indicates if the file is a socket.
+     */
+    isSocket: null,
+    /**
+     * Indicates if the file is a symbolic link.
+     */
+    isSymbolicLink: null,
+    /**
+     * The device ID.
+     */
+    dev: null,
+    /**
+     * The inode number.
+     */
+    ino: null,
+    /**
+     * The file mode (permissions).
+     */
+    mode: null,
+    /**
+     * The number of hard links.
+     */
+    nlink: null,
+    /**
+     * The user ID of the file's owner.
+     */
+    uid: null,
+    /**
+     * The group ID of the file's owner.
+     */
+    gid: null,
+    /**
+     * The device ID (if the file is a special file).
+     */
+    rdev: null,
+    /**
+     * The size of the file in bytes.
+     */
+    size: null,
+    /**
+     * The block size for file system I/O.
+     */
+    blksize: null,
+    /**
+     * The number of blocks allocated for the file.
+     */
+    blocks: null,
+    /**
+     * The last access time in milliseconds.
+     */
+    atimeMs: null,
+    /**
+     * The last modification time in milliseconds.
+     */
+    mtimeMs: null,
+    /**
+     * The last status change time in milliseconds.
+     */
+    ctimeMs: null,
+    /**
+     * The birth time (creation time) in milliseconds.
+     */
+    birthtimeMs: null
+  }
 }
