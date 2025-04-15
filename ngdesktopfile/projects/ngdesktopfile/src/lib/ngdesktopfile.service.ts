@@ -983,7 +983,7 @@ export class NGDesktopFileService {
 		preambleBuffer: Buffer;
 		closingBuffer: Buffer;
 	} {
-		const boundary = '----MgdesktopBoundary' + Date.now();
+		const boundary = '----NgdesktopBoundary' + Date.now();
 		const pathParts = path.split('/');
 		const fileName = pathParts[pathParts.length - 1] || 'file';
 
