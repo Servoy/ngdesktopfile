@@ -24,7 +24,8 @@ export class NGDesktopFileService {
 	private session: typeof electron.Session;
 	private dialog: electron.Dialog;
 	private net;
-	private formData; // typeof formData;
+	private http;
+	private https;
 
 	constructor(private servoyService: ServoyPublicService, private windowRef: WindowRefService, logFactory: LoggerFactory) {
 		this.log = logFactory.getLogger('NGDesktopFileService');
@@ -34,12 +35,13 @@ export class NGDesktopFileService {
 			this.fs = r('fs');
 			this.os = r('os');
 			this.chokidar = r('chokidar');
-			this.formData = r('form-data');
 			this.remote = r('@electron/remote');
 			this.shell = r('electron').shell;
 			this.session = this.remote.session;
 			this.dialog = this.remote.dialog;
 			this.net = this.remote.net;
+			this.http = r('http');
+			this.https = r('https');
 		} else {
 			this.log.warn('ngdesktopfile service/plugin loaded in a none electron environment!');
 		}
@@ -975,31 +977,92 @@ export class NGDesktopFileService {
 		});
 	}
 
-	private readUrlFromPath(path: string, id: string) {
-		const form = new this.formData();
-        
-        form.on('error', (err) => {
-			this.servoyService.callServiceServerSideApi('ngdesktopfile', 'readCallback', ["Error reading file " + path, id]);
-        })
+	private buildMultipartBuffers(path: string, id: string): {
+		boundary: string;
+		fileName: string;
+		preambleBuffer: Buffer;
+		closingBuffer: Buffer;
+	} {
+		const boundary = '----MgdesktopBoundary' + Date.now();
+		const pathParts = path.split('/');
+		const fileName = pathParts[pathParts.length - 1] || 'file';
 
-		form.append('path', path);
-		form.append('id', id);
-		const reader = this.fs.createReadStream(path, { highWaterMark: 8192 * 1024 });
-		form.append('file', reader); //internal buffer size
+		const fieldPathPart = `--${boundary}\r\n` +
+							`Content-Disposition: form-data; name="path"\r\n\r\n` +
+							`${path}\r\n`;
+
+		const fieldIdPart = `--${boundary}\r\n` +
+							`Content-Disposition: form-data; name="id"\r\n\r\n` +
+							`${id}\r\n`;
+
+		const filePartHeader = `--${boundary}\r\n` +
+							`Content-Disposition: form-data; name="file"; filename="${fileName}"\r\n` +
+							`Content-Type: application/octet-stream\r\n\r\n`;
+
+		const preamble = fieldPathPart + fieldIdPart + filePartHeader;
+		const closing = `\r\n--${boundary}--\r\n`;
+
+		return {
+			boundary,
+			fileName,
+			preambleBuffer: Buffer.from(preamble),
+			closingBuffer: Buffer.from(closing)
+		};
+	}
+
+	private async createMultipartRequest(fullUrl: string, boundary: string): Promise<any> {
+		const parsedUrl = new URL(fullUrl);
+		const options: any = {
+			protocol: parsedUrl.protocol,
+			hostname: parsedUrl.hostname,
+			port: parsedUrl.port,
+			path: parsedUrl.pathname + parsedUrl.search,
+			method: 'POST',
+			headers: {
+				'Content-Type': 'multipart/form-data; boundary=' + boundary
+			}
+		};
+
+		const cookies = await this.remote.getCurrentWebContents().session.cookies.get({ url: fullUrl });
+		if (cookies && cookies.length > 0) {
+			const cookieString = cookies.map(c => `${c.name}=${c.value}`).join('; ');
+			options.headers['Cookie'] = cookieString;
+		}
+
+		const lib = parsedUrl.protocol === 'https:' ? this.https : this.http;
+		return lib.request(options);
+	}
+
+	public async readUrlFromPath(path: string, id: string): Promise<void> {
+		const { boundary, preambleBuffer, closingBuffer } = this.buildMultipartBuffers(path, id);
+
 		const fullUrl = this.getFullUrl(this.servoyService.generateServiceUploadUrl('ngdesktopfile', 'readCallback'));
 
-		const request = this.net.request({
-			method: 'POST',
-			url: fullUrl,
-			session: this.remote.getCurrentWebContents().session,
-			useSessionCookies: true
-		}) as electron.ClientRequest;
-		const headers = form.getHeaders();
-		request.setHeader('content-type', headers['content-type']);
-		form.pipe(request);
-		request.on('error', (err) => {
-			this.servoyService.callServiceServerSideApi('ngdesktopfile', 'readCallback', ["Error reading file " + path, id]);
-			if (err) throw err;
+		const request = await this.createMultipartRequest(fullUrl, boundary);
+		request.on('error', (err: Error) => {
+			this.servoyService.callServiceServerSideApi('ngdesktopfile', 'readCallback', [`Error reading file ${path}`, id]);
+			throw err;
+		});
+
+		request.write(preambleBuffer);
+		const fileStream = this.fs.createReadStream(path, { highWaterMark: 8192 * 1024 });
+		fileStream.on('data', (chunk) => {
+			const canContinue = request.write(chunk);
+			if (!canContinue) {
+				fileStream.pause();
+			}
+		});
+		request.on('drain', () => {
+			fileStream.resume();
+		});
+		fileStream.on('end', () => {
+			request.write(closingBuffer);
+			request.end();
+		});
+		fileStream.on('error', (err) => {
+			this.servoyService.callServiceServerSideApi('ngdesktopfile', 'readCallback', [`Error reading file stream ${path}`, id]);
+			request.end();
+			throw err;
 		});
 	}
 
