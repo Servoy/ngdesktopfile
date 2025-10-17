@@ -1,3 +1,8 @@
+/*
+ * A service that gives access to native file-system API when running inside an NGDesktop client.
+ * This will not work when running inside a normal browser.
+ */
+
 /**
  * Returns the home dir of the user like c:/users/[username] under windows.
  * Will return always a both with forward slashes.
