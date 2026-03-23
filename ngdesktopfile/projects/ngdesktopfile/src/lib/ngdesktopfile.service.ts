@@ -26,7 +26,10 @@ export class NGDesktopFileService {
 	private net;
 	private http;
 	private https;
-
+	private rnet;
+	private tcpSockets: Map<String, any>;
+	private webSockets: Map<String, any>;
+	
 	constructor(private servoyService: ServoyPublicService, private windowRef: WindowRefService, logFactory: LoggerFactory) {
 		this.log = logFactory.getLogger('NGDesktopFileService');
 		const userAgent = navigator.userAgent.toLowerCase();
@@ -42,6 +45,10 @@ export class NGDesktopFileService {
 			this.net = this.remote.net;
 			this.http = r('http');
 			this.https = r('https');
+			this.rnet = r('net');
+			this.tcpSockets = new Map();
+			this.webSockets = new Map();
+
 		} else {
 			this.log.warn('ngdesktopfile service/plugin loaded in a none electron environment!');
 		}
@@ -259,34 +266,34 @@ export class NGDesktopFileService {
 	 * Returns true if successful.
 	 * @return {boolean}
 	 */
-    clearTempFiles() {
-        const defer = new Deferred<boolean>();
-        const tempDirPath = this.os.tmpdir().replace(/\\/g, "/") + "/" + 'svyTempFiles';
-        this.fs.readdir(tempDirPath, (err, files) => {
-          if (err) {
-            defer.resolve(false);
-          } else {
-            let filesProcessed = 0;
-            let errorOccurred = false;
-            if (files.length === 0) {
-              defer.resolve(true);
-            } else {
-              for (const file of files) {
-                this.fs.unlink(`${tempDirPath}/${file}`, err => {
-                  filesProcessed++;
-                  if (err && !errorOccurred) {
-                    errorOccurred = true;
-                    defer.resolve(false);
-                  } else if (filesProcessed === files.length && !errorOccurred) {
-                    defer.resolve(true);
-                  }
-                });
-              }
-            }
-          }
-        });
-        return defer.promise;
-    }
+	clearTempFiles() {
+		const defer = new Deferred<boolean>();
+		const tempDirPath = this.os.tmpdir().replace(/\\/g, "/") + "/" + 'svyTempFiles';
+		this.fs.readdir(tempDirPath, (err, files) => {
+			if (err) {
+				defer.resolve(false);
+			} else {
+				let filesProcessed = 0;
+				let errorOccurred = false;
+				if (files.length === 0) {
+					defer.resolve(true);
+				} else {
+					for (const file of files) {
+						this.fs.unlink(`${tempDirPath}/${file}`, err => {
+							filesProcessed++;
+							if (err && !errorOccurred) {
+								errorOccurred = true;
+								defer.resolve(false);
+							} else if (filesProcessed === files.length && !errorOccurred) {
+								defer.resolve(true);
+							}
+						});
+					}
+				}
+			}
+		});
+		return defer.promise;
+	}
 
 	/**
 	 * Reads the given bytes of a path, the callback is a function that will get as parameters the 'path' as a String and the 'file' as a JSUpload object
@@ -871,32 +878,151 @@ export class NGDesktopFileService {
 		return deferRO.promise;
 	}
 
-    /**
-     * Retrieves the path to a special directory or file associated with the given name.
-     *
-     * @param {('home' | 'tmp' | 'documents' | 'downloads')} name - The name of the directory or file.
-     * @returns {Promise<string>} A promise that resolves with the path to a special directory or file associated with the name or an empty string if the name is not one of the allowed values.
-     */
-    getPath(name: 'home' | 'temp' | 'documents' | 'downloads') {
-        const getPathDefer = new Deferred();
-    
-        // Check if the name is one of the allowed values
-        this.waitForDefered(() => {
-            if (['home', 'desktop', 'temp', 'documents', 'downloads'].includes(name)) {
-                try {
-                    let path = this.remote.app.getPath(name);
-                    getPathDefer.resolve(path);
-                } catch (error) {
-                    console.log(error);
-                    getPathDefer.resolve('');
-                }
-            } else {
-                getPathDefer.resolve('');
-            }
-        });
-        return getPathDefer.promise;
-    }
+	/**
+	 * Retrieves the path to a special directory or file associated with the given name.
+	 *
+	 * @param {('home' | 'tmp' | 'documents' | 'downloads')} name - The name of the directory or file.
+	 * @returns {Promise<string>} A promise that resolves with the path to a special directory or file associated with the name or an empty string if the name is not one of the allowed values.
+	 */
+	getPath(name: 'home' | 'temp' | 'documents' | 'downloads') {
+		const getPathDefer = new Deferred();
 
+		// Check if the name is one of the allowed values
+		this.waitForDefered(() => {
+			if (['home', 'desktop', 'temp', 'documents', 'downloads'].includes(name)) {
+				try {
+					let path = this.remote.app.getPath(name);
+					getPathDefer.resolve(path);
+				} catch (error) {
+					console.log(error);
+					getPathDefer.resolve('');
+				}
+			} else {
+				getPathDefer.resolve('');
+			}
+		});
+		return getPathDefer.promise;
+	}
+
+
+	/**
+		 * Creates a web socket connection.
+		 *
+		 * @param options The web socket options.
+		 * @param messageCallback A callback that gets called when a message gets received.
+		 * @returns The web socket that can be used in subsequent calls.
+		 */
+	createWsConnection(options, messageCallback) {
+		const defer = new Deferred();
+		this.waitForDefered(() => {
+			const socketId = this.generateSocketId();
+			const socket = new WebSocket(options.url, options.protocols);
+			socket.onopen = () => {
+				defer.resolve(socketId);
+			};
+			socket.onmessage = (ev) => {
+				messageCallback(socketId, ev.data);
+			};
+			this.addSocket(this.webSockets, socketId, socket);
+		});
+		return defer.promise;
+	}
+	/**
+	 * Closes a web socket connection.
+	 *
+	 * @param {WebSocket} socketId The web socket.
+	 */
+	closeWsConnection(socketId) {
+		this.getSocket(this.webSockets, socketId).close();
+		this.removeSocket(this.webSockets, socketId);
+	}
+	/**
+	 * Sends a web socket message.
+	 *
+	 * @param {WebSocket} socketId The web socket.
+	 * @param {any} message The message to send.
+	 */
+	sendWsMessage(socketId, message) {
+		this.getSocket(this.webSockets, socketId).send(message);
+	}
+	/**
+	 * Creates a TCP connection.
+	 *
+	 * @param options The socket options.
+	 * @param messageCallback A callback that gets called when a message gets received.
+	 * @returns The socket id that can be used in subsequent calls.
+	 */
+	createTcpConnection(options, messageCallback) {
+		const defer = new Deferred();
+		this.waitForDefered(() => {
+			const socketId = this.generateSocketId();
+			const socket = this.rnet.createConnection(options, () => {
+				defer.resolve(socketId);
+			});
+			socket.on("data", data => {
+				messageCallback(socketId, Array.from(data));
+			});
+			this.addSocket(this.tcpSockets, socketId, socket);
+		});
+		return defer.promise;
+	}
+	
+	/**
+	 * Closes a TCP connection.
+	 *
+	 * @param socketId The socket id.
+	 */
+	closeTcpConnection(socketId) {
+		this.getSocket(this.tcpSockets, socketId).end();
+		this.removeSocket(this.tcpSockets, socketId);
+	}
+	
+	/**
+	 * Sends a TCP message.
+	 *
+	 * @param socketId The socket id.
+	 * @param bytes The bytes to send.
+	 */
+	sendTcpMessage(socketId, bytes) {
+		this.getSocket(this.tcpSockets, socketId).write(new Uint8Array(bytes));
+	}
+	
+	addSocket(sockets, socketId, socket) {
+		if (sockets.has(socketId)) {
+			throw new Error(`Socket with id ${socketId} already exists.`);
+		}
+		sockets.set(socketId, socket);
+	}
+	
+	assertSocketExists(sockets, socketId) {
+		if (!sockets.has(socketId)) {
+			throw new Error(`Socket with id ${socketId} does not exist.`);
+		}
+	}
+	
+	getSocket(sockets, socketId) {
+		this.assertSocketExists(sockets, socketId);
+		return sockets.get(socketId);
+	}
+	
+	removeSocket(sockets, socketId) {
+		this.assertSocketExists(sockets, socketId);
+		sockets.delete(socketId);
+	}
+	
+	generateSocketId() {
+		// 1. Als crypto.randomUUID bestaat: gebruik die
+		if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
+			return crypto.randomUUID();
+		}
+
+		// 2. Simpele UUID v4 fallback (niet crypto-sterk, maar prima voor socket-ids)
+		return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
+			const r = Math.random() * 16 | 0;
+			const v = c === 'x' ? r : (r & 0x3 | 0x8);
+			return v.toString(16);
+		});
+	}
 
 	private getFullUrl(url: string) {
 		let base = document.baseURI;
@@ -922,40 +1048,40 @@ export class NGDesktopFileService {
 				}) as electron.ClientRequest;
 
 				request.on('response', (response) => {
-                    
-                    const resolve = () => {
-                        if (syncDefer) {
-                            syncDefer.resolve(realPath);
-                        } else {
-                            this.servoyService.callServiceServerSideApi('ngdesktopfile', 'writeCallback', [realPath, key]);
-                        }
-                        this.defer.resolve(true);
-                        this.defer = null;
-                    }
+
+					const resolve = () => {
+						if (syncDefer) {
+							syncDefer.resolve(realPath);
+						} else {
+							this.servoyService.callServiceServerSideApi('ngdesktopfile', 'writeCallback', [realPath, key]);
+						}
+						this.defer.resolve(true);
+						this.defer = null;
+					}
 					fileSize = parseInt(response.headers['content-length'] as string, 10);
-                    if (fileSize === 0) {
-                        resolve();
-                    }
-                    else {
-    					writer = this.fs.createWriteStream(realPath);
-    					response.on('data', (chunk) => {
-    						writeSize = writeSize + chunk.length;
-    						writer.write(chunk);
-    
-    						if (writeSize === fileSize) {
-    							writer.close();
-    							
-                                resolve();
-    						}
-    					});
-                    }
+					if (fileSize === 0) {
+						resolve();
+					}
+					else {
+						writer = this.fs.createWriteStream(realPath);
+						response.on('data', (chunk) => {
+							writeSize = writeSize + chunk.length;
+							writer.write(chunk);
+
+							if (writeSize === fileSize) {
+								writer.close();
+
+								resolve();
+							}
+						});
+					}
 				});
 
 				request.on('error', (error) => {
 					if (error) {
 						if (writer != null) {
 							writer.close();
-						}		
+						}
 						if (syncDefer) {
 							syncDefer.resolve('error');
 						} else {
@@ -988,16 +1114,16 @@ export class NGDesktopFileService {
 		const fileName = pathParts[pathParts.length - 1] || 'file';
 
 		const fieldPathPart = `--${boundary}\r\n` +
-							`Content-Disposition: form-data; name="path"\r\n\r\n` +
-							`${path}\r\n`;
+			`Content-Disposition: form-data; name="path"\r\n\r\n` +
+			`${path}\r\n`;
 
 		const fieldIdPart = `--${boundary}\r\n` +
-							`Content-Disposition: form-data; name="id"\r\n\r\n` +
-							`${id}\r\n`;
+			`Content-Disposition: form-data; name="id"\r\n\r\n` +
+			`${id}\r\n`;
 
 		const filePartHeader = `--${boundary}\r\n` +
-							`Content-Disposition: form-data; name="file"; filename="${fileName}"\r\n` +
-							`Content-Type: application/octet-stream\r\n\r\n`;
+			`Content-Disposition: form-data; name="file"; filename="${fileName}"\r\n` +
+			`Content-Type: application/octet-stream\r\n\r\n`;
 
 		const preamble = fieldPathPart + fieldIdPart + filePartHeader;
 		const closing = `\r\n--${boundary}--\r\n`;

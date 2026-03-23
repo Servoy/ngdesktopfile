@@ -224,6 +224,42 @@
 				{"name":"path", "type":"string"}
 			],
 			"returns": "string"
+		},
+		"createWsConnection": {
+			"parameters": [
+				{"name":"options", "type":"wsOptions"},
+				{"name":"messageCallback", "type":"function"}
+			],
+			"returns":"string"
+		},
+		"closeWsConnection": {
+			"parameters": [
+				{"name":"socket", "type":"string"}
+			]
+		},
+		"sendWsMessage": {
+			"parameters": [
+				{"name":"socket", "type":"string"},
+				{"name":"message", "type":"object"}
+			]
+		},
+		"createTcpConnection": {
+			"parameters": [
+				{"name":"options", "type":"tcpOptions"},
+				{"name":"messageCallback", "type":"function"}
+			],
+			"returns":"string"
+		},
+		"closeTcpConnection": {
+			"parameters": [
+				{"name":"socket", "type":"string"}
+			]
+		},
+		"sendTcpMessage": {
+			"parameters": [
+				{"name":"socket", "type":"string"},
+				{"name":"bytes", "type":"byte[]"}
+			]
 		}
 	},
  	"internalApi": {
@@ -295,6 +331,15 @@
 			"mtimeMs": { "type": "long"},
 			"ctimeMs": { "type": "long"},
 			"birthtimeMs": { "type": "long"}
+		},
+		"wsOptions": {
+			"url": { "type": "string" },
+			"protocols": { "type": "object[]" }
+		},
+		"tcpOptions": {
+			"host": { "type": "string" },
+			"port": { "type": "long" }
 		}
+		
 	}
 }

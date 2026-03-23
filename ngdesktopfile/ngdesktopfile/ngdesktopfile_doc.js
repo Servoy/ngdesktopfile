@@ -410,6 +410,69 @@ function clearTempFiles() {
 function getPath(name) {
 }
 
+/// WS
+
+/**
+ * Creates a web socket connection.
+ * 
+ * @param {{ url: string, protocols?: string[] | undefined }} options The web socket options.
+ * @param {function(webSocket: WebSocket, message: any)} messageCallback A callback that gets called when a message gets received.
+ * @returns {WebSocket} The web socket that can be used in subsequent calls.
+ */
+function createWsConnection(options, messageCallback)
+{
+}
+
+/**
+ * Closes a web socket connection.
+ * 
+ * @param {WebSocket} webSocket The web socket.
+ */
+function closeWsConnection(webSocket)
+{
+}
+
+/**
+ * Sends a web socket message.
+ * 
+ * @param {WebSocket} webSocket The web socket.
+ * @param {any} message The message to send.
+ */
+function sendWsMessage(webSocket, message)
+{
+}
+
+/// TCP
+
+/**
+ * Creates a TCP connection.
+ * 
+ * @param {{ host: string, port: number }} options The socket options.
+ * @param {function(socket: Socket, bytes: byte[])} messageCallback A callback that gets called when a message gets received.
+ * @returns {Socket} The socket that can be used in subsequent calls.
+ */
+function createTcpConnection(options, messageCallback)
+{
+}
+
+/**
+ * Closes a TCP connection.
+ * 
+ * @param {Socket} socket The socket.
+ */
+function closeTcpConnection(socket)
+{
+}
+
+/**
+ * Sends a TCP message.
+ * 
+ * @param {Socket} socket The socket.
+ * @param {number[]} bytes The bytes to send.
+ */
+function sendTcpMessage(socket, bytes)
+{
+}
 
 var svy_types = {
 
