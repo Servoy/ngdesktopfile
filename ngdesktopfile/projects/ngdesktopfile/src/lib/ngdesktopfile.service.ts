@@ -1049,6 +1049,19 @@ export class NGDesktopFileService {
 
 				request.on('response', (response) => {
 
+					if (response.statusCode >= 400) {
+						if (syncDefer) {
+							syncDefer.resolve('error');
+						} else {
+							this.servoyService.callServiceServerSideApi('ngdesktopfile', 'writeCallback', ['error', key]);
+						}
+						if (this.defer != null) {
+							this.defer.resolve(false);
+							this.defer = null;
+						}
+						return;
+					}
+
 					const resolve = () => {
 						if (syncDefer) {
 							syncDefer.resolve(realPath);
