@@ -190,6 +190,17 @@ export class NGDesktopFileService {
 	}
 
 	/**
+	 * Downloads whatever is served at the given url and writes it to the given path.
+	 * Unlike writeFile(path, bytes) nothing is written on the server first, the url is fetched
+	 * straight to the local disk. The url must therefore be reachable without a Servoy session
+	 * unless it points at the Servoy server itself.
+	 * Please use forward slashes (/) instead of backward slashes in the path/filename
+	 */
+	writeFileFromUrl(_path: string, _url: string, passthru: any, syncDefer: boolean) {
+		// empty impl, is implemented in server side api calling writeFileImpl below.
+	}
+
+	/**
 	 * Write a file to a given path. If called by a synchronised function, 
 	 * pass a Deferred object.
 	 *
@@ -1024,70 +1035,132 @@ export class NGDesktopFileService {
 		});
 	}
 
+	/**
+	 * Resolves the url that has to be fetched.
+	 * writeFile() always passes a url relative to the Servoy server (servoyApi.getMediaUrl() returns
+	 * 'resources/dynamic/<name>?clientnr=..'), which keeps taking the last branch below - unchanged.
+	 * writeFileFromUrl() may be given any url, so absolute ones must be left alone and a url without
+	 * a scheme but with a host ('www.google.com') is treated as an absolute https url.
+	 */
 	private getFullUrl(url: string) {
+		if (/^[a-z][a-z0-9+.-]*:\/\//i.test(url)) return url; // http://, https://, file://, ...
+		if (url.startsWith('/')) {
+			// protocol relative ('//host/x') or rooted on the Servoy server ('/x')
+			try {
+				return new URL(url, document.baseURI).href;
+			} catch (e) {
+				this.log.warn('ngdesktopfile: cannot resolve "' + url + '" against ' + document.baseURI);
+			}
+		} else {
+			// no scheme and not rooted: if the first segment looks like a host name it is an external url
+			const firstSegment = url.split(/[/?#]/)[0];
+			if (firstSegment.includes('.') && !firstSegment.includes(' ')) return 'https://' + url;
+		}
 		let base = document.baseURI;
 		if (!base.endsWith('/')) base = base + '/';
 		return base + url;
 	}
 
+	/**
+	 * True when the (already resolved) url points at the server this client is served from.
+	 * Only then may the Electron session and its cookies be attached to the request.
+	 */
+	private isSameOrigin(fullUrl: string) {
+		try {
+			return new URL(fullUrl, document.baseURI).origin === new URL(document.baseURI).origin;
+		} catch (e) {
+			return false;
+		}
+	}
+
 	private saveUrlToPath(dir: string, realPath: string, url: string, key: string, syncDefer: Deferred<string>) {
-		this.fs.mkdir(dir, { recursive: true }, (err) => {
-			if (err) {
+		let writer = null;
+		let done = false;
+
+		const succeed = () => {
+			if (done) return;
+			done = true;
+			if (syncDefer) {
+				syncDefer.resolve(realPath);
+			} else {
+				this.servoyService.callServiceServerSideApi('ngdesktopfile', 'writeCallback', [realPath, key]);
+			}
+			if (this.defer != null) {
+				this.defer.resolve(true);
+				this.defer = null;
+			}
+		};
+
+		const fail = () => {
+			if (done) return;
+			done = true;
+			if (syncDefer) {
+				syncDefer.resolve('error');
+			} else {
+				this.servoyService.callServiceServerSideApi('ngdesktopfile', 'writeCallback', ['error', key]);
+			}
+			if (this.defer != null) {
 				this.defer.resolve(false);
 				this.defer = null;
-				throw err;
-			} else {
-				let fileSize = 0;
-				let writeSize = 0;
-				let writer = null;
+			}
+		};
 
-				const request = this.net.request({
-					url: this.getFullUrl(url),
-					session: this.remote.getCurrentWebContents().session,
-					useSessionCookies: true
-				}) as electron.ClientRequest;
+		this.fs.mkdir(dir, { recursive: true }, (err) => {
+			if (err) {
+				this.log.error(err);
+				fail();
+			} else {
+				const fullUrl = this.getFullUrl(url);
+				const sameOrigin = this.isSameOrigin(fullUrl);
+
+				// only our own server gets the client's session cookies; an arbitrary host must not see them
+				const requestOptions: any = { url: fullUrl };
+				if (sameOrigin) {
+					requestOptions.session = this.remote.getCurrentWebContents().session;
+					requestOptions.useSessionCookies = true;
+				}
+				const request = this.net.request(requestOptions) as electron.ClientRequest;
 
 				request.on('response', (response) => {
 
 					if (response.statusCode >= 400) {
-						if (syncDefer) {
-							syncDefer.resolve('error');
-						} else {
-							this.servoyService.callServiceServerSideApi('ngdesktopfile', 'writeCallback', ['error', key]);
-						}
-						if (this.defer != null) {
-							this.defer.resolve(false);
-							this.defer = null;
-						}
+						this.log.warn('ngdesktopfile: ' + fullUrl + ' returned ' + response.statusCode);
+						fail();
 						return;
 					}
 
-					const resolve = () => {
-						if (syncDefer) {
-							syncDefer.resolve(realPath);
-						} else {
-							this.servoyService.callServiceServerSideApi('ngdesktopfile', 'writeCallback', [realPath, key]);
-						}
-						this.defer.resolve(true);
-						this.defer = null;
-					}
-					fileSize = parseInt(response.headers['content-length'] as string, 10);
-					if (fileSize === 0) {
-						resolve();
-					}
-					else {
-						writer = this.fs.createWriteStream(realPath);
-						response.on('data', (chunk) => {
-							writeSize = writeSize + chunk.length;
-							writer.write(chunk);
-
-							if (writeSize === fileSize) {
-								writer.close();
-
-								resolve();
+					// do not rely on content-length: a server may answer chunked, in which case the header is absent
+					const contentLength = parseInt(response.headers['content-length'] as string, 10);
+					if (contentLength === 0) {
+						this.fs.writeFile(realPath, '', (writeErr) => {
+							if (writeErr) {
+								this.log.error(writeErr);
+								fail();
+							} else {
+								succeed();
 							}
 						});
+						return;
 					}
+
+					writer = this.fs.createWriteStream(realPath);
+					writer.on('error', (writeErr: Error) => {
+						this.log.error(writeErr);
+						fail();
+					});
+					response.on('data', (chunk) => {
+						writer.write(chunk);
+					});
+					response.on('end', () => {
+						// resolve only once the data is actually flushed, so a read right after the
+						// callback does not see a truncated file
+						writer.end(() => succeed());
+					});
+					response.on('error', (responseErr: Error) => {
+						this.log.error(responseErr);
+						if (writer != null) writer.close();
+						fail();
+					});
 				});
 
 				request.on('error', (error) => {
@@ -1095,22 +1168,14 @@ export class NGDesktopFileService {
 						if (writer != null) {
 							writer.close();
 						}
-						if (syncDefer) {
-							syncDefer.resolve('error');
-						} else {
-							this.servoyService.callServiceServerSideApi('ngdesktop', 'writeCallback', ['error', key]);
-						}
-						if (this.defer != null) {
-							this.defer.resolve(false); //global defer
-							this.defer = null;
-						}
-						if (error) {
-							throw error;
-						}
+						this.log.error(error);
+						fail();
 					}
 				});
 
-				request.setHeader('Content-Type', 'application/json');
+				if (sameOrigin) {
+					request.setHeader('Content-Type', 'application/json');
+				}
 				request.end();
 			}
 		});

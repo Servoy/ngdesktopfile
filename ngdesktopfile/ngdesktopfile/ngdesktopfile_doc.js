@@ -95,6 +95,29 @@ function writeFile(path, bytes, callback, passThru) {
 }
 
 /**
+ * Downloads whatever is served at the given url and writes it to the path; if the path has sub-directories that are not there, then those are created.
+ * If the path is missing or contains only the file name, then the native system dialog for saving files is used.
+ *
+ * Unlike writeFile(path, bytes), nothing is written on the server: the NGDesktop client downloads the url straight to the local disk.
+ * Use this when the content is already reachable over http(s) and you would otherwise have to load it into memory only to hand it back as bytes.
+ *
+ * The url may be absolute ('https://host/file.pdf'), protocol relative ('//host/file.pdf'), given without a scheme
+ * ('www.google.com', in which case https:// is assumed) or relative to the Servoy server ('resources/...').
+ * Only urls on the Servoy server itself are requested with the client's session cookies; any other host is requested anonymously,
+ * so the url must be reachable without a Servoy session.
+ *
+ * When done, the optional callback is called with the written path (as a string), or 'error'. An optional passThru object is also passed back to the callback function.
+ * Please use forward slashes (/) instead of backward slashes in path/filename.
+ *
+ * @param {String} path The full path where the file will be written. If only a filename is provided, a save dialog will be shown.
+ * @param {String} url The url to download the file content from.
+ * @param {Function} [callback] An optional function that receives the written file path or an 'error' string if the operation fails.
+ * @param {Object} [passThru] An optional object that will be passed back to the callback function.
+ */
+function writeFileFromUrl(path, url, callback, passThru) {
+}
+
+/**
  * Write a file to a given path. 
  * If called by a synchronised function, pass a Deferred object.
  */

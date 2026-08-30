@@ -10,6 +10,16 @@ $scope.api.writeFile = function(path,bytes, callback, passThru)
 	$scope.api.writeFileImpl(path,servoyApi.getMediaUrl(bytes), key);
 }
 
+$scope.api.writeFileFromUrl = function(path, url, callback, passThru)
+{
+    var key=Math.random().toString(10);
+	storage[key] = {
+        callback: callback,
+        passThru: passThru
+    }
+	$scope.api.writeFileImpl(path, url, key);
+}
+
 $scope.api.writeTempFileSync = function(bytes) 
 {
     return $scope.api.writeFileSyncImpl(servoyApi.getMediaUrl(bytes));

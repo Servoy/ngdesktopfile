@@ -59,6 +59,15 @@
 			],
 			"async-now":true
 		},
+		"writeFileFromUrl": {
+			"parameters" : [
+				{"name":"path", "type":"string"},
+				{"name":"url", "type":"string"},
+				{"name":"callback", "type":"function", "optional": true},
+				{"name":"passThru", "type":"object", "optional": true}
+			],
+			"async-now":true
+		},
 		"writeTempFileSync": {
 			"parameters" : [
 				{"name":"bytes", "type":"byte[]"}
