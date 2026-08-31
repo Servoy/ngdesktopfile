@@ -13,27 +13,27 @@ type CallableFunction = (...args: unknown[]) => void;
 @Injectable()
 export class NGDesktopFileService {
 
-	private defer: Deferred<any>;
+	private defer: Deferred<any> | null = null;
 	private log: LoggerService;
 	private watchers = new Map();
-	private fs: typeof fs;
-	private os: typeof os;
-	private chokidar: typeof chokidar;
-	private remote: electron.Remote;
-	private shell: electron.Shell;
-	private session: typeof electron.Session;
-	private dialog: electron.Dialog;
-	private net;
-	private http;
-	private https;
-	private rnet;
-	private tcpSockets: Map<String, any>;
-	private webSockets: Map<String, any>;
+	private fs!: typeof fs;
+	private os!: typeof os;
+	private chokidar!: typeof chokidar;
+	private remote!: electron.Remote;
+	private shell!: electron.Shell;
+	private session!: typeof electron.Session;
+	private dialog!: electron.Dialog;
+	private net: any;
+	private http: any;
+	private https: any;
+	private rnet: any;
+	private tcpSockets!: Map<String, any>;
+	private webSockets!: Map<String, any>;
 	
 	constructor(private servoyService: ServoyPublicService, private windowRef: WindowRefService, logFactory: LoggerFactory) {
 		this.log = logFactory.getLogger('NGDesktopFileService');
 		const userAgent = navigator.userAgent.toLowerCase();
-		const r = this.windowRef.nativeWindow['require'];
+		const r = (this.windowRef.nativeWindow as any)['require'];
 		if (userAgent.indexOf(' electron/') > -1 && r) {
 			this.fs = r('fs');
 			this.os = r('os');
@@ -223,22 +223,22 @@ export class NGDesktopFileService {
 				this.dialog.showSaveDialog(this.remote.getCurrentWindow(), options)
 					.then((result) => {
 						if (!result.canceled) {
-							const realPath = result.filePath.replace(/\\/g, '/'); //on Windows the path contains backslash
+							const realPath = result.filePath!.replace(/\\/g, '/');
 							const indexOf = realPath.lastIndexOf('/');
 							if (indexOf > 0) {
 								dir = realPath.substring(0, indexOf);
 								this.saveUrlToPath(dir, realPath, url, key, syncDefer);
-							} else {
-								this.defer.resolve(false);
-								this.defer = null;
-							}
 						} else {
-							this.defer.resolve(true);
+							this.defer!.resolve(false);
 							this.defer = null;
 						}
-					}).catch((err) => {
-						this.log.info(err);
-						this.defer.resolve(false);
+					} else {
+						this.defer!.resolve(true);
+						this.defer = null;
+					}
+				}).catch((err) => {
+					this.log.info(err);
+					this.defer!.resolve(false);
 						this.defer = null;
 					});
 			}
@@ -923,7 +923,7 @@ export class NGDesktopFileService {
 		 * @param messageCallback A callback that gets called when a message gets received.
 		 * @returns The web socket that can be used in subsequent calls.
 		 */
-	createWsConnection(options, messageCallback) {
+	createWsConnection(options: any, messageCallback: any) {
 		const defer = new Deferred();
 		this.waitForDefered(() => {
 			const socketId = this.generateSocketId();
@@ -943,7 +943,7 @@ export class NGDesktopFileService {
 	 *
 	 * @param {WebSocket} socketId The web socket.
 	 */
-	closeWsConnection(socketId) {
+	closeWsConnection(socketId: any) {
 		this.getSocket(this.webSockets, socketId).close();
 		this.removeSocket(this.webSockets, socketId);
 	}
@@ -953,7 +953,7 @@ export class NGDesktopFileService {
 	 * @param {WebSocket} socketId The web socket.
 	 * @param {any} message The message to send.
 	 */
-	sendWsMessage(socketId, message) {
+	sendWsMessage(socketId: any, message: any) {
 		this.getSocket(this.webSockets, socketId).send(message);
 	}
 	/**
@@ -963,14 +963,14 @@ export class NGDesktopFileService {
 	 * @param messageCallback A callback that gets called when a message gets received.
 	 * @returns The socket id that can be used in subsequent calls.
 	 */
-	createTcpConnection(options, messageCallback) {
+	createTcpConnection(options: any, messageCallback: any) {
 		const defer = new Deferred();
 		this.waitForDefered(() => {
 			const socketId = this.generateSocketId();
 			const socket = this.rnet.createConnection(options, () => {
 				defer.resolve(socketId);
 			});
-			socket.on("data", data => {
+			socket.on("data", (data: any) => {
 				messageCallback(socketId, Array.from(data));
 			});
 			this.addSocket(this.tcpSockets, socketId, socket);
@@ -983,7 +983,7 @@ export class NGDesktopFileService {
 	 *
 	 * @param socketId The socket id.
 	 */
-	closeTcpConnection(socketId) {
+	closeTcpConnection(socketId: any) {
 		this.getSocket(this.tcpSockets, socketId).end();
 		this.removeSocket(this.tcpSockets, socketId);
 	}
@@ -994,29 +994,29 @@ export class NGDesktopFileService {
 	 * @param socketId The socket id.
 	 * @param bytes The bytes to send.
 	 */
-	sendTcpMessage(socketId, bytes) {
+	sendTcpMessage(socketId: any, bytes: any) {
 		this.getSocket(this.tcpSockets, socketId).write(new Uint8Array(bytes));
 	}
 	
-	addSocket(sockets, socketId, socket) {
+	addSocket(sockets: any, socketId: any, socket: any) {
 		if (sockets.has(socketId)) {
 			throw new Error(`Socket with id ${socketId} already exists.`);
 		}
 		sockets.set(socketId, socket);
 	}
 	
-	assertSocketExists(sockets, socketId) {
+	assertSocketExists(sockets: any, socketId: any) {
 		if (!sockets.has(socketId)) {
 			throw new Error(`Socket with id ${socketId} does not exist.`);
 		}
 	}
 	
-	getSocket(sockets, socketId) {
+	getSocket(sockets: any, socketId: any) {
 		this.assertSocketExists(sockets, socketId);
 		return sockets.get(socketId);
 	}
 	
-	removeSocket(sockets, socketId) {
+	removeSocket(sockets: any, socketId: any) {
 		this.assertSocketExists(sockets, socketId);
 		sockets.delete(socketId);
 	}
@@ -1074,7 +1074,7 @@ export class NGDesktopFileService {
 	}
 
 	private saveUrlToPath(dir: string, realPath: string, url: string, key: string, syncDefer: Deferred<string>) {
-		let writer = null;
+		let writer: fs.WriteStream | null = null;
 		let done = false;
 
 		const succeed = () => {
@@ -1149,12 +1149,12 @@ export class NGDesktopFileService {
 						fail();
 					});
 					response.on('data', (chunk) => {
-						writer.write(chunk);
+						writer!.write(chunk);
 					});
 					response.on('end', () => {
 						// resolve only once the data is actually flushed, so a read right after the
 						// callback does not see a truncated file
-						writer.end(() => succeed());
+						writer!.end(() => succeed());
 					});
 					response.on('error', (responseErr: Error) => {
 						this.log.error(responseErr);
@@ -1270,7 +1270,7 @@ export class NGDesktopFileService {
 		});
 	}
 
-	private resolveBooleanDefer(err, localDefer) {
+	private resolveBooleanDefer(err: any, localDefer: Deferred<any>) {
 		if (err) {
 			localDefer.resolve(false);
 			console.error(err);
@@ -1279,7 +1279,7 @@ export class NGDesktopFileService {
 		}
 	}
 
-	private getStatsValues(fsStats) {
+	private getStatsValues(fsStats: any) {
 		const retStats = {
 			isBlockDevice: fsStats.isBlockDevice(),
 			isCharacterDevice: fsStats.isCharacterDevice(),

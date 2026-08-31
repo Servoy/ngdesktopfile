@@ -15223,7 +15223,7 @@ Takes a V8 heap snapshot and saves it to `filePath`.
      * `stderr`. Setting this to `true` will silence deprecation warnings. This
      * property is used instead of the `--no-deprecation` command line flag.
      */
-    noDeprecation: boolean;
+    noDeprecation?: boolean;
     /**
      * A `String` representing the path to the resources directory.
      *
