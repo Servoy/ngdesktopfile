@@ -1148,18 +1148,24 @@ export class NGDesktopFileService {
 						this.log.error(writeErr);
 						fail();
 					});
-					response.on('data', (chunk) => {
-						writer!.write(chunk);
+					// Registration order matters: attaching a 'data' listener is what switches
+					// the response stream into flowing mode. For small/fast responses the stream
+					// can fully drain - firing 'end' - synchronously, in the same tick as 'data'.
+					// 'end' and 'error' must therefore be registered before 'data', otherwise a
+					// same-tick 'end'/'error' can fire before its listener even exists and is lost
+					// for good (Node buffers 'data' while paused, so 'data' is unaffected by this).
+					response.on('error', (responseErr: Error) => {
+						this.log.error(responseErr);
+						if (writer != null) writer.close();
+						fail();
 					});
 					response.on('end', () => {
 						// resolve only once the data is actually flushed, so a read right after the
 						// callback does not see a truncated file
 						writer!.end(() => succeed());
 					});
-					response.on('error', (responseErr: Error) => {
-						this.log.error(responseErr);
-						if (writer != null) writer.close();
-						fail();
+					response.on('data', (chunk) => {
+						writer!.write(chunk);
 					});
 				});
 
